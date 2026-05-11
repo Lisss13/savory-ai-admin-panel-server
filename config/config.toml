@@ -1,0 +1,26 @@
+# Конфигурация admin-panel-global-server.
+# Источник правды для приложения — этот файл (см. app/config.py).
+# Для других окружений положи рядом config.docker.toml / config.railway.toml
+# и пробрось путь через переменную окружения APP_CONFIG_FILE.
+# Реальные креды держи в config.local.toml (в .gitignore), не здесь.
+
+[app]
+name = "admin-panel-global-server"
+environment = "local"
+api_v1_prefix = "/api/v1"
+
+[database]
+# Нейтральный локальный DSN (postgres/postgres). Под свой Postgres
+# подменяй в config.local.toml, не правя этот файл.
+url = "postgresql+asyncpg://savory_admin:savory_password@localhost:5432/savory_db"
+echo = false
+pool_size = 5
+max_overflow = 10
+
+[cors]
+# Источники, которым разрешены кросс-доменные запросы. По умолчанию —
+# фронт admin_panel_global на:3040 (см.../CLAUDE.md).
+allow_origins = ["*"]
+allow_credentials = true
+allow_methods = ["*"]
+allow_headers = ["*"]
