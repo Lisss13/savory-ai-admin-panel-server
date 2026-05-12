@@ -24,3 +24,5 @@ config/*.local.toml
 .coverage
 htmlcov/
 .ruff_cache/
+.config/zed/settings.json
+.config

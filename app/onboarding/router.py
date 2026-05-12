@@ -1,0 +1,59 @@
+from fastapi import APIRouter
+from fastapi import status as status_http
+
+from app.admin.dependencies import CurrentAdmin
+from app.database import DbSession
+from app.onboarding.constants import Status as StatusEnum
+from app.onboarding.schemas import OnboardingRequestResp, OnboardingUpdateReq
+from app.onboarding.service import (
+    get_onboarding_request as list_onboarding_requests,
+)
+from app.onboarding.service import (
+    update_onboarding_request,
+)
+from app.schemas import Envelope
+
+router = APIRouter(prefix="/onboarding", tags=["onboarding"])
+
+
+@router.get(
+    "",
+    status_code=status_http.HTTP_200_OK,
+    summary="Список онбординг-заявок",
+    description=(
+        "Возвращает все активные (не soft-deleted) онбординг-заявки. "
+        "Опционально фильтрует по статусу через query-параметр `status` "
+        "(значения: `new`, `contacted`, `onboarding`, `installed`)."
+    ),
+    response_model=Envelope[list[OnboardingRequestResp]],
+)
+async def get_onboarding_request(
+        _admin: CurrentAdmin,
+        db: DbSession,
+        status: StatusEnum | None = None,
+) -> Envelope[list[OnboardingRequestResp]]:
+    resp = await list_onboarding_requests(db, status.value if status else None)
+    return Envelope(
+        data=[OnboardingRequestResp.model_validate(r) for r in resp],
+        code=status_http.HTTP_200_OK,
+    )
+
+
+@router.patch(
+    "/{or_id}",
+    status_code=status_http.HTTP_200_OK,
+    summary="Обновить онбординг-заявку",
+    description=(
+        "Обновляет поля онбординг-заявки по id из пути. "
+        "Возвращает 404, если заявка не найдена или soft-deleted."
+    ),
+    response_model=Envelope[OnboardingRequestResp],
+)
+async def patch_onboarding_request(
+        _admin: CurrentAdmin,
+        db: DbSession,
+        or_id: int,
+        body: OnboardingUpdateReq,
+) -> Envelope[OnboardingRequestResp]:
+    resp = await update_onboarding_request(db, or_id, body)
+    return Envelope(data=OnboardingRequestResp.model_validate(resp), code=status_http.HTTP_200_OK)

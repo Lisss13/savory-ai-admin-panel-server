@@ -14,6 +14,7 @@ from app.database import SessionFactory, engine
 from app.exceptions import register_exception_handlers
 from app.health.router import router as health_router
 from app.languages.router import router as languages_router
+from app.onboarding.router import router as onboarding_router
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix=settings.app.api_v1_prefix)
     app.include_router(admin_router, prefix=settings.app.api_v1_prefix)
     app.include_router(languages_router, prefix=settings.app.api_v1_prefix)
+    app.include_router(onboarding_router, prefix=settings.app.api_v1_prefix)
     return app
 
 

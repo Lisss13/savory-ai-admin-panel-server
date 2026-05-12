@@ -8,6 +8,8 @@ dependencies = [
     "asyncpg>=0.31.0",
     "bcrypt>=5.0.0",
     "fastapi>=0.136.1",
+    "phonenumbers>=9.0.30",
+    "pydantic-extra-types>=2.11.1",
     "pydantic-settings>=2.14.1",
     "pydantic[email]>=2.13.4",
     "pyjwt>=2.12.1",
@@ -62,3 +64,9 @@ disallow_incomplete_defs = false
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["app", "tests"]
+pythonVersion = "3.12"
