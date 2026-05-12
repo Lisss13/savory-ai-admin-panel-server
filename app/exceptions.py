@@ -41,7 +41,5 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
         # Формируем "поле: причина" для каждого нарушения.
-        messages = [
-            f"{'.'.join(str(p) for p in err['loc'])}: {err['msg']}" for err in exc.errors()
-        ]
+        messages = [f"{'.'.join(str(p) for p in err['loc'])}: {err['msg']}" for err in exc.errors()]
         return _envelope(status.HTTP_400_BAD_REQUEST, messages)

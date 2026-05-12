@@ -66,10 +66,24 @@ uv run uvicorn app.main:app --reload --port 8000
 - Healthcheck: `GET http://localhost:8000/api/v1/health`
 - OpenAPI (только при `[app].environment` ∈ `{local, staging}`): `http://localhost:8000/docs`
 
-## Тесты и линтер
+## Проверки (тесты, линтер, типы)
 
 ```bash
-uv run pytest
-uv run ruff check .
-uv run ruff format .
+uv run pytest                  # тесты
+uv run ruff check .            # линтер
+uv run ruff format --check .   # форматирование (без правок)
+uv run mypy                    # статические типы (app + tests)
+```
+
+Автофиксы:
+
+```bash
+uv run ruff check --fix .      # починить то, что ruff умеет починить сам
+uv run ruff format .           # отформатировать
+```
+
+Прогон всего разом перед коммитом:
+
+```bash
+uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
 ```

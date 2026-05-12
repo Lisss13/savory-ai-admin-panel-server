@@ -1,6 +1,6 @@
 """Общие схемы ответа для всего сервиса."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Envelope[T](BaseModel):
@@ -14,3 +14,24 @@ class Envelope[T](BaseModel):
     data: T | None = None
     messages: list[str] = Field(default_factory=list)
     code: int = 200
+
+
+def to_camel(s: str) -> str:
+    """`snake_case` → `camelCase`. Используется как `alias_generator` для Response-схем."""
+    parts = s.split("_")
+    return parts[0] + "".join(p.title() for p in parts[1:])
+
+
+class CamelModel(BaseModel):
+    """Базовая Response-модель: JSON-поля в camelCase, ORM-объекты читаются по атрибутам.
+
+    Контракт воркспейса: новые поля в API — camelCase (`createdAt`, `userId`).
+    `populate_by_name=True` оставляет возможность принимать и snake_case на вход.
+    """
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+        serialize_by_alias=True,
+    )

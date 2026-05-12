@@ -1,13 +1,98 @@
+"""Тестовые фикстуры.
+
+Тестовая БД — `aiosqlite:///:memory:` (реальная БД, не мок). Явно указан
+`poolclass=StaticPool`, чтобы все соединения видели один in-memory DB
+(SQLite держит схему в рамках одного соединения).
+
+Создаются только таблицы, нужные тестам (`admin`, `admin_login_log`,
+`languages`). Остальная схема `Base.metadata` живёт в продакшен-Postgres
+и в in-memory SQLite не поднимается.
+
+`app.dependency_overrides[get_db]` подменяется на сессию из тестового движка,
+поэтому `httpx.AsyncClient` ходит в SQLite, а не в реальный Postgres.
+"""
+
 from collections.abc import AsyncIterator
+from typing import cast
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import Integer, Table
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.pool import StaticPool
 
+from app.admin.models import Admin, AdminLoginLog
+from app.admin.rate_limit import login_rate_limiter
+from app.database import get_db
 from app.main import app
+from app.models import Languages
+
+# `Languages.id` в `app/models.py` объявлен как BigInteger (под Postgres-sequence).
+# SQLite автоинкрементит только `INTEGER PRIMARY KEY` — без этого все INSERT-ы
+# падают с NOT NULL constraint failed. Подменяем тип PK для тестового engine'а.
+# SQLAlchemy типизирует `__table__` как `FromClause`, поэтому касты к `Table`
+# нужны и тут, и в фикстуре `test_engine`.
+_admin_table = cast(Table, Admin.__table__)
+_admin_login_log_table = cast(Table, AdminLoginLog.__table__)
+_languages_table = cast(Table, Languages.__table__)
+_languages_table.c.id.type = Integer()
+
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+@pytest.fixture(scope="session")
+async def test_engine():
+    """Один движок на сессию pytest, in-memory SQLite на StaticPool."""
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        future=True,
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(lambda c: _admin_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _admin_login_log_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _languages_table.create(c, checkfirst=True))
+    yield engine
+    await engine.dispose()
 
 
 @pytest.fixture
-async def client() -> AsyncIterator[AsyncClient]:
+async def db_session(test_engine) -> AsyncIterator[AsyncSession]:
+    """Чистая сессия на тест: после теста все строки удаляются."""
+    session_factory = async_sessionmaker(test_engine, expire_on_commit=False, autoflush=False)
+    async with session_factory() as session:
+        try:
+            yield session
+        finally:
+            await session.rollback()
+    async with test_engine.begin() as conn:
+        await conn.run_sync(lambda c: c.execute(_admin_login_log_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_admin_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_languages_table.delete()))
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Сбрасываем in-memory rate-limiter между тестами — иначе фейлы накапливаются."""
+    login_rate_limiter.reset()
+    yield
+    login_rate_limiter.reset()
+
+
+@pytest.fixture
+async def client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
+    """HTTP-клиент с подменённым `get_db`: ходит в тестовую SQLite."""
+
+    async def _override_get_db() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    app.dependency_overrides[get_db] = _override_get_db
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+    app.dependency_overrides.clear()

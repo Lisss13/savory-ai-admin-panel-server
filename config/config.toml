@@ -24,3 +24,18 @@ allow_origins = ["*"]
 allow_credentials = true
 allow_methods = ["*"]
 allow_headers = ["*"]
+
+[admin]
+# Настройки JWT-аутентификации админ-панели и bootstrap-учётки.
+# В проде ОБЯЗАТЕЛЬНО переопределить jwt_secret и bootstrap_password
+# через config.railway.toml / config.local.toml.
+jwt_secret = "change-me-in-production-please-rotate-32b"
+jwt_algorithm = "HS256"
+jwt_expires_minutes = 60
+# Rate-limit на POST /admin/auth/login — per-email, in-memory.
+login_max_attempts = 5
+login_window_minutes = 15
+login_lockout_minutes = 15
+bootstrap_email = "admin@savory.ai"
+bootstrap_password = "admin123"
+bootstrap_name = "Root Admin"
