@@ -10,7 +10,11 @@ async def get_onboarding_request(
         db: AsyncSession,
         status: str | None = None
 ) -> list[OnboardingRequests]:
-    stmt = select(OnboardingRequests).where(OnboardingRequests.deleted_at.is_(None))
+    stmt = (
+        select(OnboardingRequests)
+        .where(OnboardingRequests.deleted_at.is_(None))
+        .order_by(OnboardingRequests.updated_at.desc())
+    )
     if status:
         stmt = stmt.where(OnboardingRequests.status == status)
 
