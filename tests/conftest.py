@@ -29,7 +29,7 @@ from app.admin.models import Admin, AdminLoginLog
 from app.admin.rate_limit import login_rate_limiter
 from app.database import get_db
 from app.main import app
-from app.models import Languages
+from app.models import Languages, SupportTickets, Users
 
 # `Languages.id` в `app/models.py` объявлен как BigInteger (под Postgres-sequence).
 # SQLite автоинкрементит только `INTEGER PRIMARY KEY` — без этого все INSERT-ы
@@ -40,6 +40,19 @@ _admin_table = cast(Table, Admin.__table__)
 _admin_login_log_table = cast(Table, AdminLoginLog.__table__)
 _languages_table = cast(Table, Languages.__table__)
 _languages_table.c.id.type = Integer()
+# То же самое для support_tickets: id → Integer для SQLite, а server_default
+# `'in_progress'::text` — Postgres-специфичный синтаксис, SQLite его не парсит,
+# поэтому сбрасываем (в тестах статус задаём явно).
+_support_tickets_table = cast(Table, SupportTickets.__table__)
+_support_tickets_table.c.id.type = Integer()
+_support_tickets_table.c.status.server_default = None
+# `users` нужна для `selectinload(SupportTickets.user)` в `get_support_ticket`,
+# даже если поле user в Response-схеме не используется. Сбрасываем те же
+# Postgres-специфичные server_default-ы.
+_users_table = cast(Table, Users.__table__)
+_users_table.c.id.type = Integer()
+_users_table.c.role.server_default = None
+_users_table.c.is_active.server_default = None
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -57,6 +70,8 @@ async def test_engine():
         await conn.run_sync(lambda c: _admin_table.create(c, checkfirst=True))
         await conn.run_sync(lambda c: _admin_login_log_table.create(c, checkfirst=True))
         await conn.run_sync(lambda c: _languages_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _users_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _support_tickets_table.create(c, checkfirst=True))
     yield engine
     await engine.dispose()
 
@@ -74,6 +89,8 @@ async def db_session(test_engine) -> AsyncIterator[AsyncSession]:
         await conn.run_sync(lambda c: c.execute(_admin_login_log_table.delete()))
         await conn.run_sync(lambda c: c.execute(_admin_table.delete()))
         await conn.run_sync(lambda c: c.execute(_languages_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_support_tickets_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_users_table.delete()))
 
 
 @pytest.fixture(autouse=True)

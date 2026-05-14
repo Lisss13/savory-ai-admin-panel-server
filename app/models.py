@@ -237,7 +237,7 @@ class SupportTickets(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=text("'in_progress'::text")
+        Text, nullable=False, server_default=text("'new'::text")
     )
     created_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
     updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
