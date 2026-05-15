@@ -131,9 +131,7 @@ async def test_list_excludes_soft_deleted(
     from datetime import UTC, datetime
 
     visible = await make_ticket(status="new", title="visible")
-    await make_ticket(
-        status="new", title="hidden", deleted_at=datetime.now(tz=UTC)
-    )
+    await make_ticket(status="new", title="hidden", deleted_at=datetime.now(tz=UTC))
 
     resp = await client.get("/api/v1/support", headers=auth_headers)
     ids = [t["id"] for t in resp.json()["data"]]
@@ -200,9 +198,7 @@ async def test_get_ticket_treats_soft_deleted_as_404(
     """Soft-deleted → 404 (а не 200 с deleted_at)."""
     from datetime import UTC, datetime
 
-    ticket = await make_ticket(
-        status="new", title="dead", deleted_at=datetime.now(tz=UTC)
-    )
+    ticket = await make_ticket(status="new", title="dead", deleted_at=datetime.now(tz=UTC))
     resp = await client.get(f"/api/v1/support/{ticket.id}", headers=auth_headers)
     assert resp.status_code == 404
 
@@ -229,9 +225,7 @@ async def test_patch_updates_status(
     assert body["data"]["status"] == "in_progress"
 
 
-async def test_patch_returns_404_for_unknown_id(
-    client: AsyncClient, auth_headers: dict[str, str]
-):
+async def test_patch_returns_404_for_unknown_id(client: AsyncClient, auth_headers: dict[str, str]):
     """Patch несуществующего id → 404 в envelope."""
     resp = await client.patch(
         "/api/v1/support/999999",
@@ -256,3 +250,86 @@ async def test_patch_rejects_invalid_status(
         headers=auth_headers,
     )
     assert resp.status_code == 400
+
+
+# ---------- audit log integration ----------
+
+
+async def test_patch_writes_audit_log_record(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    db_session: AsyncSession,
+    make_ticket: TicketFactory,
+):
+    """Успешный PATCH создаёт строку в admin_logs с deталями из body."""
+    from sqlalchemy import select
+
+    from app.admin_log.models import AdminLogs
+
+    ticket = await make_ticket(status="new")
+
+    resp = await client.patch(
+        f"/api/v1/support/{ticket.id}",
+        json={"status": "in_progress"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200
+
+    log = (await db_session.execute(select(AdminLogs))).scalar_one()
+    assert log.action == "update"
+    assert log.entity_type == "support_ticket"
+    assert log.entity_id == ticket.id
+    assert log.details == {
+        "before": {"status": "new"},
+        "after": {"status": "in_progress"},
+    }
+
+
+async def test_patch_with_same_value_does_not_duplicate_log(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    db_session: AsyncSession,
+    make_ticket: TicketFactory,
+):
+    """Повторный PATCH с тем же значением → лог не пишется (фикс дублирования)."""
+    from sqlalchemy import select
+
+    from app.admin_log.models import AdminLogs
+
+    ticket = await make_ticket(status="new")
+    first = await client.patch(
+        f"/api/v1/support/{ticket.id}",
+        json={"status": "in_progress"},
+        headers=auth_headers,
+    )
+    assert first.status_code == 200
+    second = await client.patch(
+        f"/api/v1/support/{ticket.id}",
+        json={"status": "in_progress"},
+        headers=auth_headers,
+    )
+    assert second.status_code == 200
+
+    logs = (await db_session.execute(select(AdminLogs))).scalars().all()
+    assert len(logs) == 1
+
+
+async def test_patch_404_does_not_write_log(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    db_session: AsyncSession,
+):
+    """404 (ticket не найден) — лог не пишем."""
+    from sqlalchemy import select
+
+    from app.admin_log.models import AdminLogs
+
+    resp = await client.patch(
+        "/api/v1/support/999999",
+        json={"status": "in_progress"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+    logs = (await db_session.execute(select(AdminLogs))).scalars().all()
+    assert logs == []

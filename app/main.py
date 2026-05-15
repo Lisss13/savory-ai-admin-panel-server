@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.admin import service as admin_service
 from app.admin.config import validate_admin_settings_for
 from app.admin.router import router as admin_router
+from app.admin_log.router import router as admin_log_router
 from app.config import settings
 from app.database import SessionFactory, engine
 from app.exceptions import register_exception_handlers
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router, prefix=settings.app.api_v1_prefix)
     app.include_router(admin_router, prefix=settings.app.api_v1_prefix)
+    app.include_router(admin_log_router, prefix=settings.app.api_v1_prefix)
     app.include_router(languages_router, prefix=settings.app.api_v1_prefix)
     app.include_router(onboarding_router, prefix=settings.app.api_v1_prefix)
     app.include_router(support_router, prefix=settings.app.api_v1_prefix)

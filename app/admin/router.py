@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin import security, service
 from app.admin.config import admin_settings
-from app.admin.dependencies import CurrentAdmin
+from app.admin.dependencies import ClientIp, CurrentAdmin
 from app.admin.exceptions import InvalidCredentials, TooManyLoginAttempts
 from app.admin.rate_limit import login_rate_limiter
 from app.admin.schemas import AdminResponse, LoginRequest, LoginResponse
@@ -21,15 +21,6 @@ from app.schemas import Envelope
 router = APIRouter(prefix="/admin/auth", tags=["admin"])
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
-
-
-def _client_ip(request: Request) -> str | None:
-    """Берёт IP клиента. За прокси/Railway лучше использовать X-Forwarded-For."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        # Первый адрес в цепочке — оригинальный клиент.
-        return forwarded.split(",")[0].strip() or None
-    return request.client.host if request.client else None
 
 
 @router.post(
@@ -45,9 +36,9 @@ async def login(
     payload: LoginRequest,
     request: Request,
     db: DbSession,
+    ip: ClientIp,
 ) -> Envelope[LoginResponse]:
     email = payload.email
-    ip = _client_ip(request)
     user_agent = request.headers.get("user-agent")
 
     # 1) Rate-limit. Срабатывание тоже пишем в audit.

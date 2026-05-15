@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi import status as status_http
 
-from app.admin.dependencies import CurrentAdmin
+from app.admin.dependencies import ClientIp, CurrentAdmin
 from app.database import DbSession
 from app.onboarding.constants import Status as StatusEnum
 from app.onboarding.schemas import OnboardingRequestResp, OnboardingUpdateReq
@@ -28,9 +28,9 @@ router = APIRouter(prefix="/onboarding", tags=["onboarding"])
     response_model=Envelope[list[OnboardingRequestResp]],
 )
 async def get_onboarding_request(
-        _admin: CurrentAdmin,
-        db: DbSession,
-        status: StatusEnum | None = None,
+    _admin: CurrentAdmin,
+    db: DbSession,
+    status: StatusEnum | None = None,
 ) -> Envelope[list[OnboardingRequestResp]]:
     resp = await list_onboarding_requests(db, status.value if status else None)
     return Envelope(
@@ -50,10 +50,11 @@ async def get_onboarding_request(
     response_model=Envelope[OnboardingRequestResp],
 )
 async def patch_onboarding_request(
-        _admin: CurrentAdmin,
-        db: DbSession,
-        or_id: int,
-        body: OnboardingUpdateReq,
+    admin: CurrentAdmin,
+    db: DbSession,
+    client_ip: ClientIp,
+    or_id: int,
+    body: OnboardingUpdateReq,
 ) -> Envelope[OnboardingRequestResp]:
-    resp = await update_onboarding_request(db, or_id, body)
+    resp = await update_onboarding_request(db, or_id, body, admin_id=admin.id, client_ip=client_ip)
     return Envelope(data=OnboardingRequestResp.model_validate(resp), code=status_http.HTTP_200_OK)

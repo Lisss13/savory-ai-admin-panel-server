@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import Field, EmailStr
+from pydantic import EmailStr, Field
 
 from app.schemas import CamelModel
 from app.support.constants import TicketStatus

@@ -8,7 +8,7 @@
 
 from fastapi import APIRouter, status
 
-from app.admin.dependencies import CurrentAdmin, DbSession
+from app.admin.dependencies import ClientIp, CurrentAdmin, DbSession
 from app.languages import service
 from app.languages.schemas import (
     LanguageCreate,
@@ -28,8 +28,8 @@ router = APIRouter(prefix="/languages", tags=["languages"])
     response_model=Envelope[list[LanguageResponse]],
 )
 async def get_languages(
-        db: DbSession,
-        _admin: CurrentAdmin,
+    db: DbSession,
+    _admin: CurrentAdmin,
 ) -> Envelope[list[LanguageResponse]]:
     languages = await service.list_languages(db)
     return Envelope(
@@ -46,11 +46,12 @@ async def get_languages(
     response_model=Envelope[LanguageResponse],
 )
 async def create_language(
-        payload: LanguageCreate,
-        db: DbSession,
-        _admin: CurrentAdmin,
+    payload: LanguageCreate,
+    db: DbSession,
+    admin: CurrentAdmin,
+    client_ip: ClientIp,
 ) -> Envelope[LanguageResponse]:
-    language = await service.create_language(db, payload)
+    language = await service.create_language(db, payload, admin_id=admin.id, client_ip=client_ip)
     return Envelope(data=LanguageResponse.model_validate(language), code=status.HTTP_201_CREATED)
 
 
@@ -59,16 +60,19 @@ async def create_language(
     status_code=status.HTTP_200_OK,
     summary="Удалить язык",
     description=(
-            "Soft-удаляет язык (выставляет `deleted_at`). Удалить дефолтный язык (`en`) нельзя — 409."
+        "Soft-удаляет язык (выставляет `deleted_at`). Удалить дефолтный язык (`en`) нельзя — 409."
     ),
     response_model=Envelope[LanguageDeleteResponse],
 )
 async def delete_language(
-        language_id: int,
-        db: DbSession,
-        _admin: CurrentAdmin,
+    language_id: int,
+    db: DbSession,
+    admin: CurrentAdmin,
+    client_ip: ClientIp,
 ) -> Envelope[LanguageDeleteResponse]:
-    language = await service.delete_language(db, language_id)
+    language = await service.delete_language(
+        db, language_id, admin_id=admin.id, client_ip=client_ip
+    )
     return Envelope(
         data=LanguageDeleteResponse(id=language.id),
         code=status.HTTP_200_OK,

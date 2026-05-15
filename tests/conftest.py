@@ -27,9 +27,10 @@ from sqlalchemy.pool import StaticPool
 
 from app.admin.models import Admin, AdminLoginLog
 from app.admin.rate_limit import login_rate_limiter
+from app.admin_log.models import AdminLogs
 from app.database import get_db
 from app.main import app
-from app.models import Languages, SupportTickets, Users
+from app.models import Languages, OnboardingRequests, SupportTickets, Users
 
 # `Languages.id` в `app/models.py` объявлен как BigInteger (под Postgres-sequence).
 # SQLite автоинкрементит только `INTEGER PRIMARY KEY` — без этого все INSERT-ы
@@ -53,6 +54,12 @@ _users_table = cast(Table, Users.__table__)
 _users_table.c.id.type = Integer()
 _users_table.c.role.server_default = None
 _users_table.c.is_active.server_default = None
+# `onboarding_requests` нужен тестам интеграции с audit-логом.
+_onboarding_requests_table = cast(Table, OnboardingRequests.__table__)
+_onboarding_requests_table.c.id.type = Integer()
+# `admin_logs` — таблица аудита; FK ссылается на `admin.id`, PK уже использует
+# `with_variant(Integer, "sqlite")`, так что доп. оверрайды не нужны.
+_admin_logs_table = cast(Table, AdminLogs.__table__)
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -72,6 +79,8 @@ async def test_engine():
         await conn.run_sync(lambda c: _languages_table.create(c, checkfirst=True))
         await conn.run_sync(lambda c: _users_table.create(c, checkfirst=True))
         await conn.run_sync(lambda c: _support_tickets_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _onboarding_requests_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _admin_logs_table.create(c, checkfirst=True))
     yield engine
     await engine.dispose()
 
@@ -86,10 +95,12 @@ async def db_session(test_engine) -> AsyncIterator[AsyncSession]:
         finally:
             await session.rollback()
     async with test_engine.begin() as conn:
+        await conn.run_sync(lambda c: c.execute(_admin_logs_table.delete()))
         await conn.run_sync(lambda c: c.execute(_admin_login_log_table.delete()))
-        await conn.run_sync(lambda c: c.execute(_admin_table.delete()))
-        await conn.run_sync(lambda c: c.execute(_languages_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_onboarding_requests_table.delete()))
         await conn.run_sync(lambda c: c.execute(_support_tickets_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_languages_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_admin_table.delete()))
         await conn.run_sync(lambda c: c.execute(_users_table.delete()))
 
 

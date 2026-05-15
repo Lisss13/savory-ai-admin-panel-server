@@ -20,7 +20,7 @@ from app.models import Languages
 async def test_create_language_persists_row_with_timestamps(db_session: AsyncSession):
     """Создание выставляет `created_at`/`updated_at` и возвращает свежий объект."""
     payload = LanguageCreate(code="fr", name="French", description="Français")
-    language = await service.create_language(db_session, payload)
+    language = await service.create_language(db_session, payload, admin_id=1, client_ip=None)
 
     assert language.id is not None
     assert language.code == "fr"
@@ -33,17 +33,28 @@ async def test_create_language_persists_row_with_timestamps(db_session: AsyncSes
 
 async def test_create_language_rejects_duplicate_code(db_session: AsyncSession):
     """Повторный POST с тем же `code` → 409 `LanguageCodeAlreadyExists`."""
-    await service.create_language(db_session, LanguageCreate(code="de", name="German"))
+    await service.create_language(
+        db_session, LanguageCreate(code="de", name="German"), admin_id=1, client_ip=None
+    )
 
     with pytest.raises(LanguageCodeAlreadyExists):
-        await service.create_language(db_session, LanguageCreate(code="de", name="Deutsch"))
+        await service.create_language(
+            db_session,
+            LanguageCreate(code="de", name="Deutsch"),
+            admin_id=1,
+            client_ip=None,
+        )
 
 
 async def test_list_languages_returns_only_active(db_session: AsyncSession):
     """Soft-deleted записи не должны попадать в `list_languages`."""
-    keep = await service.create_language(db_session, LanguageCreate(code="es", name="Spanish"))
-    drop = await service.create_language(db_session, LanguageCreate(code="it", name="Italian"))
-    await service.delete_language(db_session, drop.id)
+    keep = await service.create_language(
+        db_session, LanguageCreate(code="es", name="Spanish"), admin_id=1, client_ip=None
+    )
+    drop = await service.create_language(
+        db_session, LanguageCreate(code="it", name="Italian"), admin_id=1, client_ip=None
+    )
+    await service.delete_language(db_session, drop.id, admin_id=1, client_ip=None)
 
     active = await service.list_languages(db_session)
     codes = {lang.code for lang in active}
@@ -57,25 +68,66 @@ async def test_get_language_raises_when_missing(db_session: AsyncSession):
         await service.get_language(db_session, 999_999)
 
 
-async def test_get_language_returns_soft_deleted_record(db_session: AsyncSession):
-    """`get_language` ищет по id без фильтра `deleted_at` — soft-deleted доступен.
-
-    Это намеренно: листинг скрывает soft-deleted (см. `list_languages`), а
-    точечный get по id — нет, иначе нельзя реализовать восстановление и
-    `delete_language` падал бы на повторном вызове.
+async def test_get_language_hides_soft_deleted(db_session: AsyncSession):
+    """`get_language` отдаёт 404 для soft-deleted: повторный DELETE не должен плодить
+    дублирующие лог-записи о «повторном удалении» уже удалённого языка.
     """
-    lang = await service.create_language(db_session, LanguageCreate(code="pt", name="Portuguese"))
-    await service.delete_language(db_session, lang.id)
+    lang = await service.create_language(
+        db_session,
+        LanguageCreate(code="pt", name="Portuguese"),
+        admin_id=1,
+        client_ip=None,
+    )
+    await service.delete_language(db_session, lang.id, admin_id=1, client_ip=None)
 
-    fetched = await service.get_language(db_session, lang.id)
-    assert fetched.id == lang.id
-    assert fetched.deleted_at is not None
+    with pytest.raises(LanguageNotFound):
+        await service.get_language(db_session, lang.id)
+
+
+async def test_delete_language_is_idempotent_404_on_repeat(db_session: AsyncSession):
+    """Повторный DELETE → 404 и НЕ пишет второй admin_logs-запись (фикс дублирования)."""
+    from sqlalchemy import func
+    from sqlalchemy import select as sa_select
+
+    from app.admin_log.models import AdminLogs
+
+    lang = await service.create_language(
+        db_session,
+        LanguageCreate(code="sw", name="Swahili"),
+        admin_id=1,
+        client_ip=None,
+    )
+    await service.delete_language(db_session, lang.id, admin_id=1, client_ip=None)
+    logs_after_first = (
+        await db_session.execute(
+            sa_select(func.count())
+            .select_from(AdminLogs)
+            .where(AdminLogs.entity_type == "language", AdminLogs.action == "delete")
+        )
+    ).scalar_one()
+
+    with pytest.raises(LanguageNotFound):
+        await service.delete_language(db_session, lang.id, admin_id=1, client_ip=None)
+
+    logs_after_second = (
+        await db_session.execute(
+            sa_select(func.count())
+            .select_from(AdminLogs)
+            .where(AdminLogs.entity_type == "language", AdminLogs.action == "delete")
+        )
+    ).scalar_one()
+    assert logs_after_second == logs_after_first
 
 
 async def test_delete_language_is_soft(db_session: AsyncSession):
     """`delete_language` не сносит строку, а выставляет `deleted_at`."""
-    lang = await service.create_language(db_session, LanguageCreate(code="ja", name="Japanese"))
-    deleted = await service.delete_language(db_session, lang.id)
+    lang = await service.create_language(
+        db_session,
+        LanguageCreate(code="ja", name="Japanese"),
+        admin_id=1,
+        client_ip=None,
+    )
+    deleted = await service.delete_language(db_session, lang.id, admin_id=1, client_ip=None)
 
     assert deleted.id == lang.id
     assert deleted.deleted_at is not None
@@ -88,10 +140,15 @@ async def test_delete_language_is_soft(db_session: AsyncSession):
 
 async def test_delete_default_language_is_forbidden(db_session: AsyncSession):
     """Дефолтный `en` нельзя удалить — даже админом."""
-    en = await service.create_language(db_session, LanguageCreate(code="en", name="English"))
+    en = await service.create_language(
+        db_session,
+        LanguageCreate(code="en", name="English"),
+        admin_id=1,
+        client_ip=None,
+    )
 
     with pytest.raises(CannotDeleteDefaultLanguage):
-        await service.delete_language(db_session, en.id)
+        await service.delete_language(db_session, en.id, admin_id=1, client_ip=None)
 
     # Запись осталась нетронутой.
     await db_session.refresh(en)
@@ -101,4 +158,4 @@ async def test_delete_default_language_is_forbidden(db_session: AsyncSession):
 async def test_delete_language_raises_when_missing(db_session: AsyncSession):
     """Удаление несуществующего id → 404, без побочных эффектов."""
     with pytest.raises(LanguageNotFound):
-        await service.delete_language(db_session, 12345)
+        await service.delete_language(db_session, 12345, admin_id=1, client_ip=None)

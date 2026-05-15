@@ -190,3 +190,87 @@ async def test_delete_language_returns_id_envelope(
     body = resp.json()
     assert body["code"] == 200
     assert body["data"] == {"id": lang_id}
+
+
+# ---------- audit log integration ----------
+
+
+async def test_create_writes_audit_log_record(
+    client: AsyncClient, auth_headers: dict[str, str], db_session: AsyncSession
+):
+    """POST /languages → запись в admin_logs с action=create и payload в details."""
+    from sqlalchemy import select
+
+    from app.admin_log.models import AdminLogs
+
+    resp = await client.post(
+        "/api/v1/languages",
+        json={"code": "ja", "name": "Japanese"},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+
+    log = (await db_session.execute(select(AdminLogs))).scalar_one()
+    assert log.action == "create"
+    assert log.entity_type == "language"
+    assert log.entity_id == resp.json()["data"]["id"]
+    # Единая форма {before, after}: у CREATE до — ничего, после — payload.
+    assert log.details["before"] is None
+    assert log.details["after"]["code"] == "ja"
+    assert log.details["after"]["name"] == "Japanese"
+
+
+async def test_delete_writes_audit_log_with_snapshot(
+    client: AsyncClient, auth_headers: dict[str, str], db_session: AsyncSession
+):
+    """DELETE /languages/{id} → action=delete и snapshot {code, name} в details."""
+    from sqlalchemy import select
+
+    from app.admin_log.models import AdminLogs
+
+    created = await client.post(
+        "/api/v1/languages",
+        json={"code": "ko", "name": "Korean"},
+        headers=auth_headers,
+    )
+    lang_id = created.json()["data"]["id"]
+
+    resp = await client.delete(f"/api/v1/languages/{lang_id}", headers=auth_headers)
+    assert resp.status_code == 200
+
+    # Два лога: create и delete. Берём свежий (delete).
+    logs = (
+        (await db_session.execute(select(AdminLogs).order_by(AdminLogs.id.desc()))).scalars().all()
+    )
+    delete_log = logs[0]
+    assert delete_log.action == "delete"
+    assert delete_log.entity_type == "language"
+    assert delete_log.entity_id == lang_id
+    assert delete_log.details == {
+        "before": {"code": "ko", "name": "Korean"},
+        "after": None,
+    }
+
+
+async def test_delete_default_does_not_log(
+    client: AsyncClient, auth_headers: dict[str, str], db_session: AsyncSession
+):
+    """Запрещённое удаление `en` (409) — лог не пишем."""
+    from sqlalchemy import select
+
+    from app.admin_log.models import AdminLogs
+
+    created = await client.post(
+        "/api/v1/languages",
+        json={"code": "en", "name": "English"},
+        headers=auth_headers,
+    )
+    en_id = created.json()["data"]["id"]
+    # create-лог уже есть; пересчитаем после неудачного DELETE.
+    pre_delete = len((await db_session.execute(select(AdminLogs))).scalars().all())
+
+    resp = await client.delete(f"/api/v1/languages/{en_id}", headers=auth_headers)
+    assert resp.status_code == 409
+
+    post_delete = len((await db_session.execute(select(AdminLogs))).scalars().all())
+    assert post_delete == pre_delete  # ровно столько же, сколько было до запроса

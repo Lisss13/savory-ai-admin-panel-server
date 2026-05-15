@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,3 +40,14 @@ async def get_current_admin(db: DbSession, creds: BearerCreds) -> Admin:
 
 
 CurrentAdmin = Annotated[Admin, Depends(get_current_admin)]
+
+
+def get_client_ip(request: Request) -> str | None:
+    """IP клиента. За прокси/Railway берёт первый адрес из `X-Forwarded-For`."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or None
+    return request.client.host if request.client else None
+
+
+ClientIp = Annotated[str | None, Depends(get_client_ip)]

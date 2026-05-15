@@ -1,14 +1,16 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.admin_log import service as admin_log_service
+from app.admin_log.constants import AdminAction, EntityType
+from app.lib.logs.diff import calculate_diff
 from app.models import OnboardingRequests
 from app.onboarding.exceptions import OnboardingRequestNotFound
 from app.onboarding.schemas import OnboardingUpdateReq
 
 
 async def get_onboarding_request(
-        db: AsyncSession,
-        status: str | None = None
+    db: AsyncSession, status: str | None = None
 ) -> list[OnboardingRequests]:
     stmt = (
         select(OnboardingRequests)
@@ -23,17 +25,30 @@ async def get_onboarding_request(
 
 
 async def update_onboarding_request(
-        db: AsyncSession,
-        request_id: int,
-        body: OnboardingUpdateReq
+    db: AsyncSession,
+    request_id: int,
+    body: OnboardingUpdateReq,
+    *,
+    admin_id: int,
+    client_ip: str | None,
 ) -> OnboardingRequests:
     db_request: OnboardingRequests | None = await db.get(OnboardingRequests, request_id)
     if not db_request:
         raise OnboardingRequestNotFound
 
     update_data = body.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_request, key, value)
+    before, after = calculate_diff(db_request, update_data)
+
+    if before:
+        await admin_log_service.log_action(
+            db,
+            admin_id=admin_id,
+            action=AdminAction.UPDATE,
+            entity_type=EntityType.ONBOARDING_REQUEST,
+            entity_id=request_id,
+            details={"before": before, "after": after},
+            ip_address=client_ip,
+        )
 
     await db.commit()
     await db.refresh(db_request)

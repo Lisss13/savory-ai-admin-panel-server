@@ -17,20 +17,8 @@ class OnboardingRequestResp(CamelModel):
 
 class OnboardingUpdateReq(CamelModel):
     name: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=256,
-        description="Имя пользователя"
+        default=None, min_length=1, max_length=256, description="Имя пользователя"
     )
-    phone: str | None = Field(
-        default=None,
-        description="Телефон"
-    )
-    email: EmailStr | None = Field(
-        default=None,
-        description="Email"
-    )
-    status: Status | None = Field(
-        default=None,
-        description="Статус"
-    )
+    phone: str | None = Field(default=None, description="Телефон")
+    email: EmailStr | None = Field(default=None, description="Email")
+    status: Status | None = Field(default=None, description="Статус")

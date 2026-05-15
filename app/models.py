@@ -118,7 +118,6 @@ class Users(Base):
     role: Mapped[str | None] = mapped_column(Text, server_default=text("'user'::text"))
     is_active: Mapped[bool | None] = mapped_column(Boolean, server_default=text("true"))
 
-    admin_logs: Mapped[list["AdminLogs"]] = relationship("AdminLogs", back_populates="admin")
     organizations: Mapped[list["Organizations"]] = relationship(
         "Organizations", back_populates="admin"
     )
@@ -138,29 +137,6 @@ class Users(Base):
         "StaffInvites", back_populates="invited_by"
     )
     staffs: Mapped[list["Staffs"]] = relationship("Staffs", back_populates="user")
-
-
-class AdminLogs(Base):
-    __tablename__ = "admin_logs"
-    __table_args__ = (
-        ForeignKeyConstraint(["admin_id"], ["users.id"], name="fk_admin_logs_admin"),
-        PrimaryKeyConstraint("id", name="admin_logs_pkey"),
-        Index("idx_admin_logs_admin_id", "admin_id"),
-        Index("idx_admin_logs_deleted_at", "deleted_at"),
-    )
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    admin_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    action: Mapped[str] = mapped_column(Text, nullable=False)
-    entity_type: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
-    updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
-    deleted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
-    entity_id: Mapped[int | None] = mapped_column(BigInteger)
-    details: Mapped[str | None] = mapped_column(Text)
-    ip_address: Mapped[str | None] = mapped_column(Text)
-
-    admin: Mapped["Users"] = relationship("Users", back_populates="admin_logs")
 
 
 class Organizations(Base):
@@ -236,9 +212,7 @@ class SupportTickets(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=text("'new'::text")
-    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'new'::text"))
     created_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
     updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
     deleted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))

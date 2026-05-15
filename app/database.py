@@ -30,4 +30,5 @@ async def get_db() -> AsyncIterator[AsyncSession]:
     async with SessionFactory() as session:
         yield session
 
+
 DbSession = Annotated[AsyncSession, Depends(get_db)]

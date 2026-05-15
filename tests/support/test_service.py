@@ -28,14 +28,10 @@ async def test_list_returns_empty_when_no_tickets(db_session: AsyncSession):
     assert result == []
 
 
-async def test_list_excludes_soft_deleted(
-    db_session: AsyncSession, make_ticket: TicketFactory
-):
+async def test_list_excludes_soft_deleted(db_session: AsyncSession, make_ticket: TicketFactory):
     """`deleted_at IS NOT NULL` — строка не должна возвращаться."""
     active = await make_ticket(status="new", title="active")
-    await make_ticket(
-        status="new", title="dead", deleted_at=datetime.now(tz=UTC)
-    )
+    await make_ticket(status="new", title="dead", deleted_at=datetime.now(tz=UTC))
 
     result = await service.list_support_tickets(db_session)
 
@@ -43,9 +39,7 @@ async def test_list_excludes_soft_deleted(
     assert ids == [active.id]
 
 
-async def test_list_orders_by_updated_at_desc(
-    db_session: AsyncSession, make_ticket: TicketFactory
-):
+async def test_list_orders_by_updated_at_desc(db_session: AsyncSession, make_ticket: TicketFactory):
     """Сортировка `updated_at DESC` — самые свежие сверху."""
     now = datetime.now(tz=UTC)
     older = await make_ticket(status="new", updated_at=now - timedelta(hours=2))
@@ -57,9 +51,7 @@ async def test_list_orders_by_updated_at_desc(
     assert [t.id for t in result] == [newest.id, middle.id, older.id]
 
 
-async def test_list_filters_by_status(
-    db_session: AsyncSession, make_ticket: TicketFactory
-):
+async def test_list_filters_by_status(db_session: AsyncSession, make_ticket: TicketFactory):
     """Передан `status=in_progress` — возвращаются только тикеты с этим статусом."""
     await make_ticket(status="new", title="n1")
     in_progress = await make_ticket(status="in_progress", title="ip1")
@@ -84,9 +76,7 @@ async def test_list_without_status_returns_all_statuses(
     assert statuses == {"new", "in_progress", "completed"}
 
 
-async def test_get_returns_existing_ticket(
-    db_session: AsyncSession, make_ticket: TicketFactory
-):
+async def test_get_returns_existing_ticket(db_session: AsyncSession, make_ticket: TicketFactory):
     """Базовый случай — получили тикет по id."""
     ticket = await make_ticket(status="new", title="findable")
 
@@ -106,9 +96,7 @@ async def test_get_treats_soft_deleted_as_missing(
     db_session: AsyncSession, make_ticket: TicketFactory
 ):
     """Soft-deleted строка не должна выдаваться (контракт `deleted_at IS NULL`)."""
-    ticket = await make_ticket(
-        status="new", title="dead", deleted_at=datetime.now(tz=UTC)
-    )
+    ticket = await make_ticket(status="new", title="dead", deleted_at=datetime.now(tz=UTC))
 
     with pytest.raises(SupportTicketNotFound):
         await service.get_support_ticket(db_session, ticket.id)
@@ -121,7 +109,9 @@ async def test_update_changes_status_and_persists(
     ticket = await make_ticket(status="new")
     body = SupportTicketUpdateReq(status=TicketStatus.IN_PROGRESS)
 
-    updated = await service.update_support_ticket(db_session, ticket.id, body)
+    updated = await service.update_support_ticket(
+        db_session, ticket.id, body, admin_id=1, client_ip=None
+    )
 
     assert updated.id == ticket.id
     assert updated.status == "in_progress"
@@ -133,14 +123,14 @@ async def test_update_changes_status_and_persists(
     assert row.status == "in_progress"
 
 
-async def test_update_with_empty_body_is_noop(
-    db_session: AsyncSession, make_ticket: TicketFactory
-):
+async def test_update_with_empty_body_is_noop(db_session: AsyncSession, make_ticket: TicketFactory):
     """`exclude_unset=True` — пустое тело не должно затирать существующий статус."""
     ticket = await make_ticket(status="completed")
     body = SupportTicketUpdateReq()  # status вообще не передан
 
-    updated = await service.update_support_ticket(db_session, ticket.id, body)
+    updated = await service.update_support_ticket(
+        db_session, ticket.id, body, admin_id=1, client_ip=None
+    )
 
     assert updated.status == "completed"
 
@@ -150,4 +140,4 @@ async def test_update_raises_when_missing(db_session: AsyncSession):
     body = SupportTicketUpdateReq(status=TicketStatus.IN_PROGRESS)
 
     with pytest.raises(SupportTicketNotFound):
-        await service.update_support_ticket(db_session, 999_999, body)
+        await service.update_support_ticket(db_session, 999_999, body, admin_id=1, client_ip=None)

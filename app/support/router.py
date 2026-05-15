@@ -1,12 +1,12 @@
 from fastapi import APIRouter
 from fastapi import status as status_http
 
-from app.admin.dependencies import CurrentAdmin
+from app.admin.dependencies import ClientIp, CurrentAdmin
 from app.database import DbSession
 from app.schemas import Envelope
+from app.support import service as svc
 from app.support.constants import TicketStatus
 from app.support.schemas import SupportTicketResp, SupportTicketUpdateReq
-from app.support import service as svc
 
 router = APIRouter(prefix="/support", tags=["support"])
 
@@ -19,9 +19,9 @@ router = APIRouter(prefix="/support", tags=["support"])
     response_model=Envelope[list[SupportTicketResp]],
 )
 async def get_support_tickets(
-        _admin: CurrentAdmin,
-        db: DbSession,
-        status: TicketStatus | None = None,
+    _admin: CurrentAdmin,
+    db: DbSession,
+    status: TicketStatus | None = None,
 ) -> Envelope[list[SupportTicketResp]]:
     tickets = await svc.list_support_tickets(db, status)
     return Envelope(
@@ -36,9 +36,9 @@ async def get_support_tickets(
     summary="получить тикет поддержки по id",
 )
 async def get_support_ticket(
-        _admin: CurrentAdmin,
-        db: DbSession,
-        ticket_id: int,
+    _admin: CurrentAdmin,
+    db: DbSession,
+    ticket_id: int,
 ) -> Envelope[SupportTicketResp]:
     ticket = await svc.get_support_ticket(db, ticket_id)
     return Envelope(
@@ -52,17 +52,19 @@ async def get_support_ticket(
     status_code=status_http.HTTP_200_OK,
     summary="Обновить тикет поддержки",
     description=(
-            "Обновляет тикет по id из пути. "
-            "Возвращает 404, если тикет не найден или soft-deleted."
+        "Обновляет тикет по id из пути. Возвращает 404, если тикет не найден или soft-deleted."
     ),
 )
 async def patch_support_ticket(
-        _admin: CurrentAdmin,
-        db: DbSession,
-        ticket_id: int,
-        body: SupportTicketUpdateReq,
+    admin: CurrentAdmin,
+    db: DbSession,
+    client_ip: ClientIp,
+    ticket_id: int,
+    body: SupportTicketUpdateReq,
 ) -> Envelope[SupportTicketResp]:
-    ticket = await svc.update_support_ticket(db, ticket_id, body)
+    ticket = await svc.update_support_ticket(
+        db, ticket_id, body, admin_id=admin.id, client_ip=client_ip
+    )
     return Envelope(
         data=ticket,
         code=status_http.HTTP_200_OK,
