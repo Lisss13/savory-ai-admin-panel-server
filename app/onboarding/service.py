@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin_log import service as admin_log_service
 from app.admin_log.constants import AdminAction, EntityType
-from app.lib.logs.diff import calculate_diff
+from app.common.utils.diff import calculate_diff
 from app.models import OnboardingRequests
 from app.onboarding.exceptions import OnboardingRequestNotFound
 from app.onboarding.schemas import OnboardingUpdateReq
@@ -24,6 +24,19 @@ async def get_onboarding_request(
     return list(res.scalars().all())
 
 
+async def get_onboarding_request_by_id(db: AsyncSession, request_id: int) -> OnboardingRequests:
+    stmt = (
+        select(OnboardingRequests)
+        .where(OnboardingRequests.id == request_id)
+        .where(OnboardingRequests.deleted_at.is_(None))
+    )
+    res = await db.execute(stmt)
+    onboarding_request = res.scalar_one_or_none()
+    if onboarding_request is None:
+        raise OnboardingRequestNotFound
+    return onboarding_request
+
+
 async def update_onboarding_request(
     db: AsyncSession,
     request_id: int,
@@ -32,9 +45,9 @@ async def update_onboarding_request(
     admin_id: int,
     client_ip: str | None,
 ) -> OnboardingRequests:
-    db_request: OnboardingRequests | None = await db.get(OnboardingRequests, request_id)
-    if not db_request:
-        raise OnboardingRequestNotFound
+    # `db.get` не фильтрует soft-deleted — используем общий лукап,
+    # который учитывает `deleted_at IS NULL` и сам кидает OnboardingRequestNotFound.
+    db_request = await get_onboarding_request_by_id(db, request_id)
 
     update_data = body.model_dump(exclude_unset=True)
     before, after = calculate_diff(db_request, update_data)

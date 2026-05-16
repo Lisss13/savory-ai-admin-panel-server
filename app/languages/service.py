@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin_log import service as admin_log_service
 from app.admin_log.constants import AdminAction, EntityType
+from app.common.database.soft_delete import soft_delete
 from app.languages.constants import DEFAULT_LANGUAGE_CODE
 from app.languages.exceptions import (
     CannotDeleteDefaultLanguage,
@@ -15,7 +16,6 @@ from app.languages.exceptions import (
     LanguageNotFound,
 )
 from app.languages.schemas import LanguageCreate
-from app.lib.database.soft_delete import soft_delete
 from app.models import Languages
 
 

@@ -3,14 +3,9 @@ from fastapi import status as status_http
 
 from app.admin.dependencies import ClientIp, CurrentAdmin
 from app.database import DbSession
+from app.onboarding import service
 from app.onboarding.constants import Status as StatusEnum
 from app.onboarding.schemas import OnboardingRequestResp, OnboardingUpdateReq
-from app.onboarding.service import (
-    get_onboarding_request as list_onboarding_requests,
-)
-from app.onboarding.service import (
-    update_onboarding_request,
-)
 from app.schemas import Envelope
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
@@ -32,9 +27,23 @@ async def get_onboarding_request(
     db: DbSession,
     status: StatusEnum | None = None,
 ) -> Envelope[list[OnboardingRequestResp]]:
-    resp = await list_onboarding_requests(db, status.value if status else None)
+    resp = await service.get_onboarding_request(db, status.value if status else None)
     return Envelope(
         data=[OnboardingRequestResp.model_validate(r) for r in resp],
+        code=status_http.HTTP_200_OK,
+    )
+
+
+@router.get(
+    "/{or_id}",
+    status_code=status_http.HTTP_200_OK,
+)
+async def get_onboarding_request_by_id(
+    or_id: int, _admin: CurrentAdmin, db: DbSession
+) -> Envelope[OnboardingRequestResp]:
+    resp = await service.get_onboarding_request_by_id(db, or_id)
+    return Envelope(
+        data=resp,
         code=status_http.HTTP_200_OK,
     )
 
@@ -56,5 +65,11 @@ async def patch_onboarding_request(
     or_id: int,
     body: OnboardingUpdateReq,
 ) -> Envelope[OnboardingRequestResp]:
-    resp = await update_onboarding_request(db, or_id, body, admin_id=admin.id, client_ip=client_ip)
+    resp = await service.update_onboarding_request(
+        db,
+        or_id,
+        body,
+        admin_id=admin.id,
+        client_ip=client_ip,
+    )
     return Envelope(data=OnboardingRequestResp.model_validate(resp), code=status_http.HTTP_200_OK)

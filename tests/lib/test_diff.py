@@ -6,7 +6,7 @@
 `setattr` применяется к самому объекту.
 """
 
-from app.lib.logs.diff import calculate_diff, calculate_diff_dict, is_diff
+from app.common.utils.diff import calculate_diff, calculate_diff_dict, is_diff
 from app.models import OnboardingRequests
 
 

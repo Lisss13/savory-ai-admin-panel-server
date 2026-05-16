@@ -30,7 +30,18 @@ from app.admin.rate_limit import login_rate_limiter
 from app.admin_log.models import AdminLogs
 from app.database import get_db
 from app.main import app
-from app.models import Languages, OnboardingRequests, SupportTickets, Users
+from app.models import (
+    AiRequestLogs,
+    Languages,
+    OnboardingRequests,
+    Organizations,
+    Restaurants,
+    Subscriptions,
+    SupportTickets,
+    Tables,
+    TelegramSubscribers,
+    Users,
+)
 
 # `Languages.id` в `app/models.py` объявлен как BigInteger (под Postgres-sequence).
 # SQLite автоинкрементит только `INTEGER PRIMARY KEY` — без этого все INSERT-ы
@@ -60,6 +71,32 @@ _onboarding_requests_table.c.id.type = Integer()
 # `admin_logs` — таблица аудита; FK ссылается на `admin.id`, PK уже использует
 # `with_variant(Integer, "sqlite")`, так что доп. оверрайды не нужны.
 _admin_logs_table = cast(Table, AdminLogs.__table__)
+# `telegram_subscribers` — id BigInteger, для SQLite-автоинкремента сводим к Integer.
+_telegram_subscribers_table = cast(Table, TelegramSubscribers.__table__)
+_telegram_subscribers_table.c.id.type = Integer()
+# Связка для /restaurants — нужны organizations, restaurants, tables, subscriptions,
+# ai_request_logs. У всех id — BigInteger (Postgres bigserial), для SQLite сводим
+# к Integer, чтобы автоинкремент PK работал. Postgres-специфичные server_default
+# (`'text'::text`, `true`, числовые литералы) SQLite парсит, но boolean-литералы
+# приходится отключать (см. оверрайды ниже).
+_organizations_table = cast(Table, Organizations.__table__)
+_organizations_table.c.id.type = Integer()
+_restaurants_table = cast(Table, Restaurants.__table__)
+_restaurants_table.c.id.type = Integer()
+# Postgres-defaults на бул-колонках с `::text` SQLite не понимает.
+_restaurants_table.c.is_active.server_default = None
+_restaurants_table.c.ordering_enabled.server_default = None
+_restaurants_table.c.show_dish_links.server_default = None
+_restaurants_table.c.ai_suggestions_enabled.server_default = None
+_restaurants_table.c.currency.server_default = None
+_restaurants_table.c.default_language.server_default = None
+_tables_table = cast(Table, Tables.__table__)
+_tables_table.c.id.type = Integer()
+_subscriptions_table = cast(Table, Subscriptions.__table__)
+_subscriptions_table.c.id.type = Integer()
+_subscriptions_table.c.is_active.server_default = None
+_ai_request_logs_table = cast(Table, AiRequestLogs.__table__)
+_ai_request_logs_table.c.id.type = Integer()
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -81,6 +118,14 @@ async def test_engine():
         await conn.run_sync(lambda c: _support_tickets_table.create(c, checkfirst=True))
         await conn.run_sync(lambda c: _onboarding_requests_table.create(c, checkfirst=True))
         await conn.run_sync(lambda c: _admin_logs_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _telegram_subscribers_table.create(c, checkfirst=True))
+        # Порядок важен: организации ссылаются на users (admin_id),
+        # рестораны — на организации, столики/подписки/AI-логи — на рестораны.
+        await conn.run_sync(lambda c: _organizations_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _restaurants_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _tables_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _subscriptions_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _ai_request_logs_table.create(c, checkfirst=True))
     yield engine
     await engine.dispose()
 
@@ -100,8 +145,16 @@ async def db_session(test_engine) -> AsyncIterator[AsyncSession]:
         await conn.run_sync(lambda c: c.execute(_onboarding_requests_table.delete()))
         await conn.run_sync(lambda c: c.execute(_support_tickets_table.delete()))
         await conn.run_sync(lambda c: c.execute(_languages_table.delete()))
+        # Дочерние таблицы сносим до родительских, иначе FK на restaurants/orgs
+        # не дадут удалить родителя.
+        await conn.run_sync(lambda c: c.execute(_ai_request_logs_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_subscriptions_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_tables_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_restaurants_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_organizations_table.delete()))
         await conn.run_sync(lambda c: c.execute(_admin_table.delete()))
         await conn.run_sync(lambda c: c.execute(_users_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_telegram_subscribers_table.delete()))
 
 
 @pytest.fixture(autouse=True)

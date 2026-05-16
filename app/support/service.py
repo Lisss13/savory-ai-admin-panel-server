@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.admin_log import service as admin_log_service
 from app.admin_log.constants import AdminAction, EntityType
-from app.lib.logs.diff import calculate_diff
+from app.common.utils.diff import calculate_diff
 from app.models import SupportTickets
 from app.support.constants import TicketStatus
 from app.support.exceptions import SupportTicketNotFound
