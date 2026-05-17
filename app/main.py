@@ -16,6 +16,7 @@ from app.exceptions import register_exception_handlers
 from app.health.router import router as health_router
 from app.languages.router import router as languages_router
 from app.onboarding.router import router as onboarding_router
+from app.organizations.router import router as organizations_router
 from app.restaurants.router import router as restaurants_router
 from app.support.router import router as support_router
 from app.telegram.router import router as telegram_router
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
     app.include_router(support_router, prefix=settings.app.api_v1_prefix)
     app.include_router(telegram_router, prefix=settings.app.api_v1_prefix)
     app.include_router(restaurants_router, prefix=settings.app.api_v1_prefix)
+    app.include_router(organizations_router, prefix=settings.app.api_v1_prefix)
     return app
 
 
