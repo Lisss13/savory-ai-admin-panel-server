@@ -1,3 +1,4 @@
+# pyright: basic
 import datetime
 import decimal
 from typing import Optional

@@ -24,7 +24,6 @@ from .conftest import (
     TableFactory,
 )
 
-
 # ---------- авторизация ----------
 
 
@@ -264,9 +263,7 @@ async def test_pagination_default_limit_and_offset(
     assert data[-1]["id"] == created[9].id
 
 
-async def test_pagination_rejects_limit_over_max(
-    client: AsyncClient, auth_headers: dict[str, str]
-):
+async def test_pagination_rejects_limit_over_max(client: AsyncClient, auth_headers: dict[str, str]):
     """`limit > 100` запрещён валидацией (ge=1, le=100) → ошибка 4xx, не 500."""
     resp = await client.get("/api/v1/restaurants?limit=101", headers=auth_headers)
     assert 400 <= resp.status_code < 500
@@ -280,9 +277,7 @@ async def test_pagination_rejects_negative_offset(
     assert 400 <= resp.status_code < 500
 
 
-async def test_pagination_rejects_zero_limit(
-    client: AsyncClient, auth_headers: dict[str, str]
-):
+async def test_pagination_rejects_zero_limit(client: AsyncClient, auth_headers: dict[str, str]):
     """`limit=0` запрещён (ge=1)."""
     resp = await client.get("/api/v1/restaurants?limit=0", headers=auth_headers)
     assert 400 <= resp.status_code < 500

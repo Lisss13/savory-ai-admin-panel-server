@@ -1,10 +1,13 @@
 """Доменные исключения модуля онбординг-заявок."""
 
+from typing import final
+
 from fastapi import status
 
 from app.exceptions import AppException
 
 
+@final
 class OnboardingRequestNotFound(AppException):
     """Заявка с таким id не найдена (или soft-deleted)."""
 

@@ -19,8 +19,8 @@ class PaginatedResponse[T](BaseModel):
 
 
 def get_pagination_params(
-        limit: Annotated[int, Query(ge=1, le=100)] = 10,
-        offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PaginationParamsM:
     return PaginationParamsM(limit=limit, offset=offset)
 

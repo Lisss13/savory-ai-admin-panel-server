@@ -14,7 +14,7 @@ from app.admin.config import admin_settings
 from app.admin.dependencies import ClientIp, CurrentAdmin
 from app.admin.exceptions import InvalidCredentials, TooManyLoginAttempts
 from app.admin.rate_limit import login_rate_limiter
-from app.admin.schemas import AdminResponse, LoginRequest, LoginResponse
+from app.admin.schemas import AdminResponse, CreatAdminRequest, LoginRequest, LoginResponse
 from app.database import get_db
 from app.schemas import Envelope
 
@@ -89,6 +89,16 @@ async def login(
         admin=AdminResponse.model_validate(admin),
     )
     return Envelope(data=data, code=status.HTTP_200_OK)
+
+
+@router.post("/create-admin", status_code=status.HTTP_200_OK)
+async def create_admin(
+    _admin: CurrentAdmin,
+    payload: CreatAdminRequest,
+    db: DbSession,
+) -> Envelope[AdminResponse]:
+    admin = await service.add_new_admin(db, payload.email, payload.password, payload.name)
+    return Envelope(data=AdminResponse.model_validate(admin), code=status.HTTP_200_OK)
 
 
 @router.get(

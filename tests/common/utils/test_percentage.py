@@ -77,9 +77,7 @@ class TestPercentage:
             (25_000, 25_000, 100.0),
         ],
     )
-    def test_ai_limit_real_world_values(
-        self, value: int, total: int, expected: float
-    ) -> None:
+    def test_ai_limit_real_world_values(self, value: int, total: int, expected: float) -> None:
         """Реальные значения из контекста AI-лимита (`MONTHLY_AI_REQUEST_LIMIT=25000`).
 
         Фиксируем именно эти точки — они проверяются и в HTTP-тестах

@@ -45,6 +45,17 @@ async def create_admin(
     return admin
 
 
+async def add_new_admin(
+    db: AsyncSession,
+    email: str,
+    password: str,
+    name: str | None = None,
+) -> Admin:
+    admin = await create_admin(db, email=email, password=password, name=name)
+    await db.commit()
+    return admin
+
+
 async def authenticate_admin(db: AsyncSession, *, email: str, password: str) -> Admin:
     """Проверяет пару email/пароль. Любая ошибка — единое `InvalidCredentials`.
 

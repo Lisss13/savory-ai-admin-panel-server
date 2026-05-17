@@ -43,7 +43,7 @@ async def get_onboarding_request_by_id(
 ) -> Envelope[OnboardingRequestResp]:
     resp = await service.get_onboarding_request_by_id(db, or_id)
     return Envelope(
-        data=resp,
+        data=OnboardingRequestResp.model_validate(resp),
         code=status_http.HTTP_200_OK,
     )
 

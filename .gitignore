@@ -7,22 +7,27 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
+# Случайно созданная venv в корне проекта (см. ./server/pyvenv.cfg)
+/server/
 
 # Secrets & local config overrides
 .env
 .env.*
 config/*.local.toml
 
-# IDE / OS
+# IDE / OS / редакторы
 .idea/
 .vscode/
+.config/
 .DS_Store
 
-# Test artifacts
+# Локальные настройки Claude Code (личные права/пермишены)
+.claude/settings.local.json
+
+# Test & type-check artifacts
 .pytest_cache/
 .coverage
 htmlcov/
 .ruff_cache/
-.config/zed/settings.json
-.config
+.mypy_cache/

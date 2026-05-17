@@ -1,10 +1,13 @@
 """Доменные исключения языкового модуля."""
 
+from typing import final
+
 from fastapi import status
 
 from app.exceptions import AppException
 
 
+@final
 class LanguageNotFound(AppException):
     """Язык с таким id не найден (или soft-deleted)."""
 
@@ -12,6 +15,7 @@ class LanguageNotFound(AppException):
     detail = "language not found"
 
 
+@final
 class LanguageCodeAlreadyExists(AppException):
     """Активный язык с таким кодом уже есть — нарушен UNIQUE(code)."""
 
@@ -19,6 +23,7 @@ class LanguageCodeAlreadyExists(AppException):
     detail = "language code already exists"
 
 
+@final
 class CannotDeleteDefaultLanguage(AppException):
     """Нельзя удалить дефолтный язык (`en`) — на него ссылаются другие сервисы."""
 

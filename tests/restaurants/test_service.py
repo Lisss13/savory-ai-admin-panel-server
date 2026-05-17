@@ -42,7 +42,7 @@ async def test_returns_row_with_all_expected_keys(
 ):
     """Контракт `list_restaurants`: возвращает строку с фиксированным набором полей."""
     org = await make_organization(name="Acme Corp")
-    await make_restaurant(name="Main", organization_id=org.id)
+    _ = await make_restaurant(name="Main", organization_id=org.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -71,7 +71,7 @@ async def test_excludes_soft_deleted_restaurants(
 ):
     """Ресторан с `deleted_at IS NOT NULL` не должен попадать в выдачу."""
     active = await make_restaurant(name="active")
-    await make_restaurant(name="deleted", deleted_at=datetime.now(tz=UTC))
+    _ = await make_restaurant(name="deleted", deleted_at=datetime.now(tz=UTC))
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -84,7 +84,7 @@ async def test_excludes_inactive_restaurants(
 ):
     """`is_active=false` — ресторан не должен попадать в админ-список активных."""
     active = await make_restaurant(name="active", is_active=True)
-    await make_restaurant(name="inactive", is_active=False)
+    _ = await make_restaurant(name="inactive", is_active=False)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -113,7 +113,7 @@ async def test_tables_count_is_zero_when_no_tables(
     make_restaurant: RestaurantFactory,
 ):
     """`tablesCount=0`, если столиков нет — LEFT JOIN + COALESCE."""
-    await make_restaurant()
+    _ = await make_restaurant()
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -127,9 +127,9 @@ async def test_tables_count_counts_only_active(
 ):
     """В `tablesCount` попадают только не soft-deleted столики этого ресторана."""
     rest = await make_restaurant()
-    await make_table(restaurant_id=rest.id)
-    await make_table(restaurant_id=rest.id)
-    await make_table(restaurant_id=rest.id, deleted_at=datetime.now(tz=UTC))
+    _ = await make_table(restaurant_id=rest.id)
+    _ = await make_table(restaurant_id=rest.id)
+    _ = await make_table(restaurant_id=rest.id, deleted_at=datetime.now(tz=UTC))
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -144,9 +144,9 @@ async def test_tables_count_isolated_per_restaurant(
     """Столики ресторана А не должны попадать в счётчик ресторана Б."""
     rest_a = await make_restaurant()
     rest_b = await make_restaurant()
-    await make_table(restaurant_id=rest_a.id)
-    await make_table(restaurant_id=rest_a.id)
-    await make_table(restaurant_id=rest_b.id)
+    _ = await make_table(restaurant_id=rest_a.id)
+    _ = await make_table(restaurant_id=rest_a.id)
+    _ = await make_table(restaurant_id=rest_b.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
     counts = {r["id"]: r["tables_count"] for r in result}
@@ -163,7 +163,7 @@ async def test_ai_requests_left_equals_limit_when_no_logs(
     make_restaurant: RestaurantFactory,
 ):
     """Без AI-логов остаток = полный месячный лимит (COALESCE → 0 использовано)."""
-    await make_restaurant()
+    _ = await make_restaurant()
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -178,7 +178,7 @@ async def test_ai_requests_left_decreases_by_count_of_logs(
     """`aiRequestsLeft = MONTHLY_LIMIT - count(ai_request_logs за месяц)`."""
     rest = await make_restaurant()
     for _ in range(5):
-        await make_ai_log(restaurant_id=rest.id)
+        _ = await make_ai_log(restaurant_id=rest.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -192,9 +192,9 @@ async def test_ai_requests_excludes_soft_deleted_logs(
 ):
     """Soft-deleted AI-логи в счётчик не идут."""
     rest = await make_restaurant()
-    await make_ai_log(restaurant_id=rest.id)
-    await make_ai_log(restaurant_id=rest.id)
-    await make_ai_log(restaurant_id=rest.id, deleted_at=datetime.now(tz=UTC))
+    _ = await make_ai_log(restaurant_id=rest.id)
+    _ = await make_ai_log(restaurant_id=rest.id)
+    _ = await make_ai_log(restaurant_id=rest.id, deleted_at=datetime.now(tz=UTC))
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -210,8 +210,8 @@ async def test_ai_requests_excludes_logs_from_previous_month(
     rest = await make_restaurant()
     now = datetime.now(tz=UTC)
     last_month = now.replace(day=1) - timedelta(days=1)
-    await make_ai_log(restaurant_id=rest.id)  # этот месяц
-    await make_ai_log(restaurant_id=rest.id, created_at=last_month)  # прошлый
+    _ = await make_ai_log(restaurant_id=rest.id)  # этот месяц
+    _ = await make_ai_log(restaurant_id=rest.id, created_at=last_month)  # прошлый
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -226,8 +226,8 @@ async def test_ai_requests_isolated_per_restaurant(
     """Логи ресторана А не уменьшают остаток ресторана Б."""
     rest_a = await make_restaurant()
     rest_b = await make_restaurant()
-    await make_ai_log(restaurant_id=rest_a.id)
-    await make_ai_log(restaurant_id=rest_a.id)
+    _ = await make_ai_log(restaurant_id=rest_a.id)
+    _ = await make_ai_log(restaurant_id=rest_a.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
     left = {r["id"]: r["ai_requests_left"] for r in result}
@@ -244,7 +244,7 @@ async def test_percentage_used_is_zero_when_no_logs(
     make_restaurant: RestaurantFactory,
 ):
     """Регрессия фикса: при 0 использованных запросов процент == 0, а не 100."""
-    await make_restaurant()
+    _ = await make_restaurant()
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -258,7 +258,7 @@ async def test_percentage_used_is_full_when_limit_reached(
 ):
     """Один лог = 1/25000 ≈ 0.0 (округлено до 2 знаков). Контракт `percentage`."""
     rest = await make_restaurant()
-    await make_ai_log(restaurant_id=rest.id)
+    _ = await make_ai_log(restaurant_id=rest.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -274,7 +274,7 @@ async def test_percentage_used_reflects_actual_usage(
     """250 логов = 1% от лимита 25000 — проверяет, что считается `used / limit`."""
     rest = await make_restaurant()
     for _ in range(250):
-        await make_ai_log(restaurant_id=rest.id)
+        _ = await make_ai_log(restaurant_id=rest.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -292,8 +292,8 @@ async def test_subscription_active_true_when_active_subscription_exists(
 ):
     """`subscriptionActive=true`, если у орг есть активная неистёкшая подписка."""
     org = await make_organization()
-    await make_restaurant(organization_id=org.id)
-    await make_subscription(organization_id=org.id)
+    _ = await make_restaurant(organization_id=org.id)
+    _ = await make_subscription(organization_id=org.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -305,7 +305,7 @@ async def test_subscription_active_false_when_no_subscription(
     make_restaurant: RestaurantFactory,
 ):
     """Нет ни одной подписки у орг → `subscriptionActive=false`."""
-    await make_restaurant()
+    _ = await make_restaurant()
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -320,9 +320,9 @@ async def test_subscription_active_false_when_expired(
 ):
     """Подписка с `end_date < now` считается неактивной (контракт Go-сервера)."""
     org = await make_organization()
-    await make_restaurant(organization_id=org.id)
+    _ = await make_restaurant(organization_id=org.id)
     past = datetime.now(tz=UTC) - timedelta(days=1)
-    await make_subscription(organization_id=org.id, end_date=past)
+    _ = await make_subscription(organization_id=org.id, end_date=past)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -337,8 +337,8 @@ async def test_subscription_active_false_when_is_active_flag_false(
 ):
     """`is_active=false` — подписка не считается активной даже при будущей дате."""
     org = await make_organization()
-    await make_restaurant(organization_id=org.id)
-    await make_subscription(organization_id=org.id, is_active=False)
+    _ = await make_restaurant(organization_id=org.id)
+    _ = await make_subscription(organization_id=org.id, is_active=False)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -353,10 +353,8 @@ async def test_subscription_active_false_when_soft_deleted(
 ):
     """Soft-deleted подписка не учитывается в EXISTS."""
     org = await make_organization()
-    await make_restaurant(organization_id=org.id)
-    await make_subscription(
-        organization_id=org.id, deleted_at=datetime.now(tz=UTC)
-    )
+    _ = await make_restaurant(organization_id=org.id)
+    _ = await make_subscription(organization_id=org.id, deleted_at=datetime.now(tz=UTC))
 
     result = await list_restaurants(db_session, DEFAULT_PAGE)
 
@@ -376,8 +374,8 @@ async def test_filter_subscription_is_true_keeps_only_active(
     org_with = await make_organization(name="with-sub")
     org_without = await make_organization(name="no-sub")
     rest_with = await make_restaurant(organization_id=org_with.id)
-    await make_restaurant(organization_id=org_without.id)
-    await make_subscription(organization_id=org_with.id)
+    _ = await make_restaurant(organization_id=org_without.id)
+    _ = await make_subscription(organization_id=org_with.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE, subscription_is=True)
 
@@ -393,9 +391,9 @@ async def test_filter_subscription_is_false_keeps_only_inactive(
     """`subscription_is=False` оставляет только рестораны без активной подписки."""
     org_with = await make_organization(name="with-sub")
     org_without = await make_organization(name="no-sub")
-    await make_restaurant(organization_id=org_with.id)
+    _ = await make_restaurant(organization_id=org_with.id)
     rest_without = await make_restaurant(organization_id=org_without.id)
-    await make_subscription(organization_id=org_with.id)
+    _ = await make_subscription(organization_id=org_with.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE, subscription_is=False)
 
@@ -411,9 +409,9 @@ async def test_filter_subscription_is_none_returns_all(
     """`subscription_is=None` (по умолчанию) — без фильтрации."""
     org_with = await make_organization()
     org_without = await make_organization()
-    await make_restaurant(organization_id=org_with.id)
-    await make_restaurant(organization_id=org_without.id)
-    await make_subscription(organization_id=org_with.id)
+    _ = await make_restaurant(organization_id=org_with.id)
+    _ = await make_restaurant(organization_id=org_without.id)
+    _ = await make_subscription(organization_id=org_with.id)
 
     result = await list_restaurants(db_session, DEFAULT_PAGE, subscription_is=None)
 
@@ -430,11 +428,9 @@ async def test_pagination_limit_truncates_result(
     """`limit=2` — возвращаются первые 2 ресторана по `id ASC`."""
     first = await make_restaurant()
     second = await make_restaurant()
-    await make_restaurant()
+    _ = await make_restaurant()
 
-    result = await list_restaurants(
-        db_session, PaginationParamsM(limit=2, offset=0)
-    )
+    result = await list_restaurants(db_session, PaginationParamsM(limit=2, offset=0))
 
     assert [r["id"] for r in result] == [first.id, second.id]
 
@@ -444,13 +440,11 @@ async def test_pagination_offset_skips_records(
     make_restaurant: RestaurantFactory,
 ):
     """`offset=2` — первые два пропускаются."""
-    await make_restaurant()
-    await make_restaurant()
+    _ = await make_restaurant()
+    _ = await make_restaurant()
     third = await make_restaurant()
 
-    result = await list_restaurants(
-        db_session, PaginationParamsM(limit=10, offset=2)
-    )
+    result = await list_restaurants(db_session, PaginationParamsM(limit=10, offset=2))
 
     assert [r["id"] for r in result] == [third.id]
 
@@ -460,10 +454,8 @@ async def test_pagination_offset_beyond_total_returns_empty(
     make_restaurant: RestaurantFactory,
 ):
     """`offset > total` — пустой список, без падения."""
-    await make_restaurant()
+    _ = await make_restaurant()
 
-    result = await list_restaurants(
-        db_session, PaginationParamsM(limit=10, offset=100)
-    )
+    result = await list_restaurants(db_session, PaginationParamsM(limit=10, offset=100))
 
     assert result == []

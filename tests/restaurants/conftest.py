@@ -80,9 +80,7 @@ async def owner_user(db_session: AsyncSession) -> Users:
 
 
 @pytest.fixture
-def make_organization(
-    db_session: AsyncSession, owner_user: Users
-) -> OrganizationFactory:
+def make_organization(db_session: AsyncSession, owner_user: Users) -> OrganizationFactory:
     """Фабрика организаций. `admin_id` по умолчанию указывает на `owner_user`."""
     counter = {"n": 0}
 

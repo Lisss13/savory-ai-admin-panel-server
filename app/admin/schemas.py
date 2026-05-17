@@ -24,6 +24,10 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
+class CreatAdminRequest(LoginRequest):
+    name: str = Field(min_length=1, max_length=256)
+
+
 class AdminResponse(CamelModel):
     """Публичное представление админа — без хеша пароля."""
 

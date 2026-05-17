@@ -15,9 +15,9 @@ MONTHLY_AI_REQUEST_LIMIT = 25_000
 
 
 async def list_restaurants(
-        db: AsyncSession,
-        params: PaginationParamsM,
-        subscription_is: bool | None = None,
+    db: AsyncSession,
+    params: PaginationParamsM,
+    subscription_is: bool | None = None,
 ) -> Sequence[dict[str, Any]]:
     """Активные рестораны + название организации, флаг подписки, кол-во столиков, остаток AI-лимита.
 
