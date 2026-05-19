@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.utils.pagination import PaginationParamsM
+from app.common.utils.pagination import PaginationModel
 from app.organizations.service import get_organizations
 
 from .conftest import (
@@ -24,7 +24,7 @@ from .conftest import (
     UserFactory,
 )
 
-DEFAULT_PAGE = PaginationParamsM(limit=100, offset=0)
+DEFAULT_PAGE = PaginationModel(limit=100, offset=0)
 
 # ---------- базовая выдача ----------
 
@@ -484,7 +484,7 @@ async def test_pagination_default_limit_truncates_to_10(
     """Дефолтный `limit=10` (из `PaginationParamsM`) обрезает выдачу до 10."""
     created = [await make_organization() for _ in range(12)]
 
-    result = await get_organizations(db_session, PaginationParamsM())
+    result = await get_organizations(db_session, PaginationModel())
 
     assert len(result) == 10
     assert [r["id"] for r in result] == [o.id for o in created[:10]]
@@ -499,7 +499,7 @@ async def test_pagination_limit_truncates_result(
     second = await make_organization()
     _ = await make_organization()
 
-    result = await get_organizations(db_session, PaginationParamsM(limit=2, offset=0))
+    result = await get_organizations(db_session, PaginationModel(limit=2, offset=0))
 
     assert [r["id"] for r in result] == [first.id, second.id]
 
@@ -513,7 +513,7 @@ async def test_pagination_offset_skips_records(
     _ = await make_organization()
     third = await make_organization()
 
-    result = await get_organizations(db_session, PaginationParamsM(limit=10, offset=2))
+    result = await get_organizations(db_session, PaginationModel(limit=10, offset=2))
 
     assert [r["id"] for r in result] == [third.id]
 
@@ -525,7 +525,7 @@ async def test_pagination_offset_beyond_total_returns_empty(
     """`offset > total` — пустой список, без падения."""
     _ = await make_organization()
 
-    result = await get_organizations(db_session, PaginationParamsM(limit=10, offset=100))
+    result = await get_organizations(db_session, PaginationModel(limit=10, offset=100))
 
     assert result == []
 
@@ -550,7 +550,7 @@ async def test_pagination_only_loads_nested_data_for_returned_orgs(
     await make_restaurant(organization_id=page2_org.id)
     await make_subscription(organization_id=page2_org.id)
 
-    result = await get_organizations(db_session, PaginationParamsM(limit=1, offset=0))
+    result = await get_organizations(db_session, PaginationModel(limit=1, offset=0))
 
     assert len(result) == 1
     assert result[0]["id"] == page1_org.id

@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.utils.pagination import PaginationParamsM
+from app.common.utils.pagination import PaginationModel
 from app.restaurants.service import MONTHLY_AI_REQUEST_LIMIT, list_restaurants
 
 from .conftest import (
@@ -23,7 +23,7 @@ from .conftest import (
     TableFactory,
 )
 
-DEFAULT_PAGE = PaginationParamsM(limit=100, offset=0)
+DEFAULT_PAGE = PaginationModel(limit=100, offset=0)
 
 
 # ---------- базовая выдача ----------
@@ -430,7 +430,7 @@ async def test_pagination_limit_truncates_result(
     second = await make_restaurant()
     _ = await make_restaurant()
 
-    result = await list_restaurants(db_session, PaginationParamsM(limit=2, offset=0))
+    result = await list_restaurants(db_session, PaginationModel(limit=2, offset=0))
 
     assert [r["id"] for r in result] == [first.id, second.id]
 
@@ -444,7 +444,7 @@ async def test_pagination_offset_skips_records(
     _ = await make_restaurant()
     third = await make_restaurant()
 
-    result = await list_restaurants(db_session, PaginationParamsM(limit=10, offset=2))
+    result = await list_restaurants(db_session, PaginationModel(limit=10, offset=2))
 
     assert [r["id"] for r in result] == [third.id]
 
@@ -456,6 +456,6 @@ async def test_pagination_offset_beyond_total_returns_empty(
     """`offset > total` — пустой список, без падения."""
     _ = await make_restaurant()
 
-    result = await list_restaurants(db_session, PaginationParamsM(limit=10, offset=100))
+    result = await list_restaurants(db_session, PaginationModel(limit=10, offset=100))
 
     assert result == []

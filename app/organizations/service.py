@@ -7,13 +7,13 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.utils.pagination import PaginationParamsM
+from app.common.utils.pagination import PaginationModel
 from app.models import Organizations, Restaurants, Subscriptions, Users
 
 
 async def get_organizations(
     db: AsyncSession,
-    params: PaginationParamsM,
+    params: PaginationModel,
 ) -> Sequence[dict[str, Any]]:
     """Отдает все organization: список орг с админом, ресторанами и подписками."""
 

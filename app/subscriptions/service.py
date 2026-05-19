@@ -26,6 +26,7 @@ from sqlalchemy.orm import aliased, selectinload
 
 from app.admin_log import service as admin_log_service
 from app.admin_log.constants import AdminAction, EntityType
+from app.common.utils.pagination import PaginationModel
 from app.models import (
     Organizations,
     Restaurants,
@@ -207,7 +208,7 @@ async def _deactivate_active_for_org(
     `create_subscription` и `approve` IMMEDIATE_NEW. Конкурентов в этот же
     момент защищает `_get_organization(for_update=True)` на orgID.
     """
-    await db.execute(
+    _ = await db.execute(
         update(Subscriptions)
         .where(
             Subscriptions.organization_id == organization_id,
@@ -250,8 +251,7 @@ async def list_subscriptions(
     organization_id: int | None,
     is_active: bool | None,
     expired: bool | None,
-    page: int,
-    page_size: int,
+    pagination: PaginationModel,
 ) -> tuple[list[SubscriptionResp], int]:
     """Список с фильтрами + пагинацией. Soft-deleted скрыты.
 
@@ -302,8 +302,8 @@ async def list_subscriptions(
         .join(rc, Subscriptions.organization_id == rc.c.org_id, isouter=True)
         .where(and_(*filters))
         .order_by(Subscriptions.created_at.desc(), Subscriptions.id.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        .offset((pagination.offset - 1) * pagination.limit)
+        .limit(pagination.limit)
     )
     rows = (await db.execute(stmt)).all()
     items = [
@@ -386,8 +386,7 @@ async def list_extension_requests(
     *,
     status: ExtensionRequestStatus | None,
     organization_id: int | None,
-    page: int,
-    page_size: int,
+    pagination: PaginationModel,
 ) -> tuple[list[ExtensionRequestResp], int]:
     """Список заявок. По дефолту в роутере фильтр `status=pending`."""
     filters: list[Any] = [SubscriptionExtensionRequests.deleted_at.is_(None)]
@@ -417,8 +416,8 @@ async def list_extension_requests(
             SubscriptionExtensionRequests.created_at.desc(),
             SubscriptionExtensionRequests.id.desc(),
         )
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        .offset((pagination.offset - 1) * pagination.limit)
+        .limit(pagination.limit)
     )
     reqs = list((await db.scalars(stmt)).all())
     return [_request_to_resp(r) for r in reqs], total
@@ -579,7 +578,6 @@ async def approve_extension_request(
     request.admin_comment = payload.admin_comment
     request.updated_at = now
 
-    # 4) Audit — улучшение vs Go (тот approve не логирует).
     _ = await admin_log_service.log_action(
         db,
         admin_id=admin_id,

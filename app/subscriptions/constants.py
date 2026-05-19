@@ -2,10 +2,9 @@
 
 from enum import StrEnum
 
-DEFAULT_PAGE_SIZE = 20
-MAX_PAGE_SIZE = 100
+# DEFAULT_PAGE_SIZE = 20
+# MAX_PAGE_SIZE = 100
 # По умолчанию у новой подписки лимит = 1 ресторан (соответствует server_default
-# колонки `restaurant_limit` в БД и Go-`storage.Subscription.RestaurantLimit`).
 DEFAULT_RESTAURANT_LIMIT = 1
 
 

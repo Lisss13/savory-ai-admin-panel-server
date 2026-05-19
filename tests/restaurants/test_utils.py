@@ -7,7 +7,7 @@
 
 import pytest
 
-from app.common.utils.percentage import percentage
+from app.restaurants.utils import percentage
 
 
 class TestPercentage:

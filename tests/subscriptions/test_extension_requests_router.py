@@ -51,7 +51,8 @@ async def test_list_returns_envelope_with_camel_case(
     body = resp.json()
     assert body["code"] == 200 and body["messages"] == []
     data = body["data"]
-    assert data["page"] == 1 and data["total"] == 1
+    # PaginatedResponse — {items, total, limit, offset}.
+    assert data["total"] == 1 and data["limit"] == 10 and data["offset"] == 0
 
     item = data["items"][0]
     assert item["status"] == "pending"
@@ -106,18 +107,18 @@ async def test_list_pagination(
     make_organization: OrganizationFactory,
     make_extension_request: ExtensionRequestFactory,
 ):
-    """`pageSize=1` отдаёт одну запись, `total` отражает реальное число."""
+    """`limit=1&offset=1` отдаёт одну запись, `total` отражает реальное число."""
     org = await make_organization()
     user = await make_user()
     for _ in range(3):
         await make_extension_request(organization_id=org.id, user_id=user.id, status="pending")
 
     resp = await client.get(
-        "/api/v1/subscriptions/extension?page=2&pageSize=1", headers=auth_headers
+        "/api/v1/subscriptions/extension?limit=1&offset=1", headers=auth_headers
     )
     assert resp.status_code == 200, resp.json()
     data = resp.json()["data"]
-    assert data["page"] == 2 and data["pageSize"] == 1 and data["total"] == 3
+    assert data["limit"] == 1 and data["offset"] == 1 and data["total"] == 3
     assert len(data["items"]) == 1
 
 

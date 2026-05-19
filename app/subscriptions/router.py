@@ -18,11 +18,10 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from app.admin.dependencies import ClientIp, CurrentAdmin, DbSession
-from app.schemas import Envelope, PagedResp
+from app.common.utils.pagination import PaginatedResponse, PaginationParams
+from app.schemas import Envelope
 from app.subscriptions import service
 from app.subscriptions.constants import (
-    DEFAULT_PAGE_SIZE,
-    MAX_PAGE_SIZE,
     ExtensionRequestStatus,
 )
 from app.subscriptions.schemas import (
@@ -53,22 +52,22 @@ router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 async def list_subscriptions(
     _admin: CurrentAdmin,
     db: DbSession,
+    pagination: PaginationParams,
     organization_id: Annotated[int | None, Query(alias="organizationId", gt=0)] = None,
     is_active: Annotated[bool | None, Query(alias="isActive")] = None,
     expired: Annotated[bool | None, Query()] = None,
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(alias="pageSize", ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
-) -> Envelope[PagedResp[SubscriptionResp]]:
+) -> Envelope[PaginatedResponse[SubscriptionResp]]:
     items, total = await service.list_subscriptions(
         db,
         organization_id=organization_id,
         is_active=is_active,
         expired=expired,
-        page=page,
-        page_size=page_size,
+        pagination=pagination,
     )
     return Envelope(
-        data=PagedResp[SubscriptionResp](items=items, page=page, page_size=page_size, total=total),
+        data=PaginatedResponse[SubscriptionResp](
+            items=items, limit=pagination.limit, offset=pagination.offset, total=total
+        ),
         code=status.HTTP_200_OK,
     )
 
@@ -116,23 +115,21 @@ extension_requests_router = APIRouter(
 async def list_extension_requests(
     _admin: CurrentAdmin,
     db: DbSession,
+    pagination: PaginationParams,
     status_filter: Annotated[
         ExtensionRequestStatus | None, Query(alias="status")
     ] = ExtensionRequestStatus.PENDING,
     organization_id: Annotated[int | None, Query(alias="organizationId", gt=0)] = None,
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(alias="pageSize", ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
-) -> Envelope[PagedResp[ExtensionRequestResp]]:
+) -> Envelope[PaginatedResponse[ExtensionRequestResp]]:
     items, total = await service.list_extension_requests(
         db,
         status=status_filter,
         organization_id=organization_id,
-        page=page,
-        page_size=page_size,
+        pagination=pagination,
     )
     return Envelope(
-        data=PagedResp[ExtensionRequestResp](
-            items=items, page=page, page_size=page_size, total=total
+        data=PaginatedResponse[ExtensionRequestResp](
+            items=items, limit=pagination.limit, offset=pagination.offset, total=total
         ),
         code=status.HTTP_200_OK,
     )

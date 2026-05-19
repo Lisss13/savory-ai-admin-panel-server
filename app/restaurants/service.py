@@ -5,9 +5,9 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.utils.pagination import PaginationParamsM
-from app.common.utils.percentage import percentage
+from app.common.utils.pagination import PaginationModel
 from app.models import AiRequestLogs, Organizations, Restaurants, Subscriptions, Tables
+from app.restaurants.utils import percentage
 
 # Месячный лимит AI-запросов на один ресторан — синхронизирован с Go-`server/`
 # (`app/storage/constants.go::MonthlyAIRequestLimit = 25000`).
@@ -16,7 +16,7 @@ MONTHLY_AI_REQUEST_LIMIT = 25_000
 
 async def list_restaurants(
     db: AsyncSession,
-    params: PaginationParamsM,
+    params: PaginationModel,
     subscription_is: bool | None = None,
 ) -> Sequence[dict[str, Any]]:
     """Активные рестораны + название организации, флаг подписки, кол-во столиков, остаток AI-лимита.

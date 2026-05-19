@@ -251,7 +251,7 @@ async def test_pagination_default_limit_and_offset(
     auth_headers: dict[str, str],
     make_restaurant: RestaurantFactory,
 ):
-    """Без query — по умолчанию `limit=10`, `offset=0` (см. PaginationParamsM)."""
+    """Без query — по умолчанию `limit=10`, `offset=0` (см. PaginationModel)."""
     created = [await make_restaurant() for _ in range(11)]
 
     resp = await client.get("/api/v1/restaurants", headers=auth_headers)
