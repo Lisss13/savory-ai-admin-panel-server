@@ -11,6 +11,7 @@ from app.admin.config import validate_admin_settings_for
 from app.admin.router import router as admin_router
 from app.admin_log.router import router as admin_log_router
 from app.config import settings
+from app.dashboard.router import router as dashboard_router
 from app.database import SessionFactory, engine
 from app.exceptions import register_exception_handlers
 from app.health.router import router as health_router
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(telegram_router, prefix=settings.app.api_v1_prefix)
     app.include_router(restaurants_router, prefix=settings.app.api_v1_prefix)
     app.include_router(organizations_router, prefix=settings.app.api_v1_prefix)
+    app.include_router(dashboard_router, prefix=settings.app.api_v1_prefix)
     return app
 
 

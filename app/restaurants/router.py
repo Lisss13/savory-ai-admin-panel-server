@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Query
 from starlette import status
 
@@ -20,7 +22,7 @@ async def get_restaurants(
     db: DbSession,
     _admin: CurrentAdmin,
     pagination: PaginationParams,
-    subscription_is: bool | None = Query(default=None, alias="subscriptionActive"),
+    subscription_is: Annotated[bool | None, Query(alias="subscriptionActive")] = None,
 ) -> Envelope[list[RestaurantResponse]]:
     """Возвращает активные (не soft-deleted, `is_active=true`) рестораны
     с названием организации, флагом активной подписки у организации,
