@@ -36,6 +36,7 @@ from app.models import (
     OnboardingRequests,
     Organizations,
     Restaurants,
+    SubscriptionExtensionRequests,
     Subscriptions,
     SupportTickets,
     Tables,
@@ -97,6 +98,12 @@ _subscriptions_table.c.id.type = Integer()
 _subscriptions_table.c.is_active.server_default = None
 _ai_request_logs_table = cast(Table, AiRequestLogs.__table__)
 _ai_request_logs_table.c.id.type = Integer()
+# `subscription_extension_requests` — нужна тестам модуля subscriptions.
+# Postgres-specific server_default `'pending'::text` SQLite не парсит — сбрасываем.
+_subscription_extension_requests_table = cast(Table, SubscriptionExtensionRequests.__table__)
+_subscription_extension_requests_table.c.id.type = Integer()
+_subscription_extension_requests_table.c.status.server_default = None
+_subscription_extension_requests_table.c.requested_restaurant_limit.server_default = None
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -126,6 +133,9 @@ async def test_engine():
         await conn.run_sync(lambda c: _tables_table.create(c, checkfirst=True))
         await conn.run_sync(lambda c: _subscriptions_table.create(c, checkfirst=True))
         await conn.run_sync(lambda c: _ai_request_logs_table.create(c, checkfirst=True))
+        await conn.run_sync(
+            lambda c: _subscription_extension_requests_table.create(c, checkfirst=True)
+        )
     yield engine
     await engine.dispose()
 
@@ -148,6 +158,7 @@ async def db_session(test_engine) -> AsyncIterator[AsyncSession]:
         # Дочерние таблицы сносим до родительских, иначе FK на restaurants/orgs
         # не дадут удалить родителя.
         await conn.run_sync(lambda c: c.execute(_ai_request_logs_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_subscription_extension_requests_table.delete()))
         await conn.run_sync(lambda c: c.execute(_subscriptions_table.delete()))
         await conn.run_sync(lambda c: c.execute(_tables_table.delete()))
         await conn.run_sync(lambda c: c.execute(_restaurants_table.delete()))

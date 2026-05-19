@@ -19,6 +19,12 @@ from app.languages.router import router as languages_router
 from app.onboarding.router import router as onboarding_router
 from app.organizations.router import router as organizations_router
 from app.restaurants.router import router as restaurants_router
+from app.subscriptions.router import (
+    extension_requests_router,
+)
+from app.subscriptions.router import (
+    router as subscriptions_router,
+)
 from app.support.router import router as support_router
 from app.telegram.router import router as telegram_router
 
@@ -78,6 +84,8 @@ def create_app() -> FastAPI:
     app.include_router(restaurants_router, prefix=settings.app.api_v1_prefix)
     app.include_router(organizations_router, prefix=settings.app.api_v1_prefix)
     app.include_router(dashboard_router, prefix=settings.app.api_v1_prefix)
+    app.include_router(subscriptions_router, prefix=settings.app.api_v1_prefix)
+    app.include_router(extension_requests_router, prefix=settings.app.api_v1_prefix)
     return app
 
 

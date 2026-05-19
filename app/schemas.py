@@ -35,3 +35,16 @@ class CamelModel(BaseModel):
         from_attributes=True,
         serialize_by_alias=True,
     )
+
+
+class PagedResp[T](CamelModel):
+    """Универсальный формат страницы списка: `{items, page, pageSize, total}`.
+
+    Используется везде, где нужна пагинация — единая форма для admin-фронта,
+    избавляет от копирования одинаковой структуры в каждый модуль.
+    """
+
+    items: list[T]
+    page: int
+    page_size: int
+    total: int

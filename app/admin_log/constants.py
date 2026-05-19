@@ -7,7 +7,7 @@ class AdminAction(StrEnum):
     """Тип действия админа над сущностью.
 
     Подмножество Go-таксономии (`block/unblock/activate/deactivate` пока не
-    используем — соответствующих эндпоинтов в FastAPI-сервисе ещё нет).
+    используем — соответствующих эндпоинтов в FastAPI-сервисе нет).
     """
 
     CREATE = "create"
@@ -21,6 +21,8 @@ class EntityType(StrEnum):
     ONBOARDING_REQUEST = "onboarding_request"
     SUPPORT_TICKET = "support_ticket"
     LANGUAGE = "language"
+    SUBSCRIPTION = "subscription"
+    SUBSCRIPTION_EXTENSION_REQUEST = "subscription_extension_request"
 
 
 DEFAULT_PAGE_SIZE = 50
