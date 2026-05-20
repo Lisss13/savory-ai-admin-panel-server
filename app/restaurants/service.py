@@ -15,7 +15,7 @@ from app.models import (
     Subscriptions,
     Tables,
 )
-from app.restaurants.schemas import RestaurantDetailResponse, RestaurantResponse
+from app.restaurants.schemas import RestaurantDetailResponse
 from app.restaurants.utils import percentage
 
 # Месячный лимит AI-запросов на один ресторан — синхронизирован с Go-`server/`

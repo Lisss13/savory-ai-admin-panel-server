@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.utils.pagination import PaginationModel
 from app.models import SupportTickets
 from app.support import service
 from app.support.constants import TicketStatus
@@ -21,10 +22,14 @@ from app.support.schemas import SupportTicketUpdateReq
 
 from .conftest import TicketFactory
 
+# Дефолтные параметры пагинации для тестов листинга — limit достаточный, чтобы
+# не отрезать ни одну фикстуру.
+DEFAULT_PAGINATION = PaginationModel(limit=100, offset=0)
+
 
 async def test_list_returns_empty_when_no_tickets(db_session: AsyncSession):
     """Пустая таблица → пустой список (а не None и не исключение)."""
-    result = await service.list_support_tickets(db_session)
+    result = await service.list_support_tickets(db_session, DEFAULT_PAGINATION)
     assert result == []
 
 
@@ -33,7 +38,7 @@ async def test_list_excludes_soft_deleted(db_session: AsyncSession, make_ticket:
     active = await make_ticket(status="new", title="active")
     await make_ticket(status="new", title="dead", deleted_at=datetime.now(tz=UTC))
 
-    result = await service.list_support_tickets(db_session)
+    result = await service.list_support_tickets(db_session, DEFAULT_PAGINATION)
 
     ids = [t.id for t in result]
     assert ids == [active.id]
@@ -46,7 +51,7 @@ async def test_list_orders_by_updated_at_desc(db_session: AsyncSession, make_tic
     newest = await make_ticket(status="new", updated_at=now)
     middle = await make_ticket(status="new", updated_at=now - timedelta(hours=1))
 
-    result = await service.list_support_tickets(db_session)
+    result = await service.list_support_tickets(db_session, DEFAULT_PAGINATION)
 
     assert [t.id for t in result] == [newest.id, middle.id, older.id]
 
@@ -57,7 +62,9 @@ async def test_list_filters_by_status(db_session: AsyncSession, make_ticket: Tic
     in_progress = await make_ticket(status="in_progress", title="ip1")
     await make_ticket(status="completed", title="c1")
 
-    result = await service.list_support_tickets(db_session, status=TicketStatus.IN_PROGRESS)
+    result = await service.list_support_tickets(
+        db_session, DEFAULT_PAGINATION, status=TicketStatus.IN_PROGRESS
+    )
 
     assert [t.id for t in result] == [in_progress.id]
 
@@ -70,7 +77,7 @@ async def test_list_without_status_returns_all_statuses(
     await make_ticket(status="in_progress")
     await make_ticket(status="completed")
 
-    result = await service.list_support_tickets(db_session, status=None)
+    result = await service.list_support_tickets(db_session, DEFAULT_PAGINATION, status=None)
 
     statuses = {t.status for t in result}
     assert statuses == {"new", "in_progress", "completed"}
