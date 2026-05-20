@@ -2,7 +2,7 @@
 # Документация: https://docs.railway.com/reference/config-as-code
 
 [build]
-builder = "NIXPACKS"
+builder = "RAILPACK"
 
 [deploy]
 startCommand = "bash scripts/start.sh"
