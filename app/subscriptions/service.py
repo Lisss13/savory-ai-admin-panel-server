@@ -302,7 +302,7 @@ async def list_subscriptions(
         .join(rc, Subscriptions.organization_id == rc.c.org_id, isouter=True)
         .where(and_(*filters))
         .order_by(Subscriptions.created_at.desc(), Subscriptions.id.desc())
-        .offset((pagination.offset - 1) * pagination.limit)
+        .offset(pagination.offset)
         .limit(pagination.limit)
     )
     rows = (await db.execute(stmt)).all()
@@ -416,7 +416,7 @@ async def list_extension_requests(
             SubscriptionExtensionRequests.created_at.desc(),
             SubscriptionExtensionRequests.id.desc(),
         )
-        .offset((pagination.offset - 1) * pagination.limit)
+        .offset(pagination.offset)
         .limit(pagination.limit)
     )
     reqs = list((await db.scalars(stmt)).all())

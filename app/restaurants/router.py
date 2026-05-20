@@ -5,8 +5,8 @@ from starlette import status
 
 from app.admin.dependencies import CurrentAdmin, DbSession
 from app.common.utils.pagination import PaginationParams
-from app.restaurants.schemas import RestaurantResponse
-from app.restaurants.service import list_restaurants
+from app.restaurants.schemas import RestaurantDetailResponse, RestaurantResponse
+from app.restaurants.service import get_restaurant_by_id, list_restaurants
 from app.schemas import Envelope
 
 router = APIRouter(prefix="/restaurants", tags=["restaurants"])
@@ -33,5 +33,28 @@ async def get_restaurants(
     rows = await list_restaurants(db, pagination, subscription_is)
     return Envelope(
         data=[RestaurantResponse.model_validate(r) for r in rows],
+        code=status.HTTP_200_OK,
+    )
+
+
+@router.get(
+    "/{restaurant_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Получить ресторан по ID",
+    response_model=Envelope[RestaurantDetailResponse],
+)
+async def get_restaurant(
+    db: DbSession,
+    _admin: CurrentAdmin,
+    restaurant_id: int,
+) -> Envelope[RestaurantDetailResponse]:
+    restaurant = await get_restaurant_by_id(db, restaurant_id)
+    if not restaurant:
+        return Envelope(
+            messages=["Restaurant not found"],
+            code=status.HTTP_404_NOT_FOUND,
+        )
+    return Envelope(
+        data=restaurant,
         code=status.HTTP_200_OK,
     )

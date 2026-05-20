@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.schemas import CamelModel
 
 
@@ -18,3 +20,22 @@ class RestaurantResponse(CamelModel):
     tables_count: int
     ai_requests_left: int
     percentage_of_used_ai_req: float
+
+
+class RestaurantDetailResponse(RestaurantResponse):
+    """Детальная карточка ресторана для страницы `/dashboard/restaurants/:id`.
+
+    Расширяет `RestaurantResponse` фичефлагами, временными метками, полным
+    AI-балансом (used + left) и счётчиками по меню. Используется только в
+    GET `/restaurants/{id}`; список ресторанов остаётся на `RestaurantResponse`.
+    """
+
+    default_language: str | None = None
+    show_dish_links: bool | None = None
+    ai_suggestions_enabled: bool | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    ai_requests_used: int
+    menu_categories_count: int
+    dishes_count: int
+    dishes_active_count: int

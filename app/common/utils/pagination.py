@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from fastapi import Depends, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,7 +8,9 @@ MAX_PAGE_SIZE = 100
 
 
 class PaginationModel(BaseModel):
-    model_config = ConfigDict(json_schema_extra={"example": {"limit": 10, "offset": 0}})
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        json_schema_extra={"example": {"limit": 10, "offset": 0}}
+    )
 
     limit: int = Field(10, ge=1, le=100)
     offset: int = Field(0, ge=0)

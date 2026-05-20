@@ -5,14 +5,12 @@
 чтобы повторный PATCH с тем же телом не плодил дубли в журнале.
 """
 
-from typing import Any
-
 from sqlalchemy.orm import DeclarativeBase
 
 
 def calculate_diff(
-    db_request: DeclarativeBase, update_data: dict[str, Any]
-) -> tuple[dict[str, Any], dict[str, Any]]:
+    db_request: DeclarativeBase, update_data: dict[str, object]
+) -> tuple[dict[str, object], dict[str, object]]:
     """Сравнивает поля ORM-объекта с `update_data`, применяет изменения и возвращает diff.
 
     Делает три вещи за один проход:
@@ -43,13 +41,13 @@ def calculate_diff(
     return before, after
 
 
-def is_diff(before: dict[str, Any], after: dict[str, Any]) -> bool:
+def is_diff(before: dict[str, object], after: dict[str, object]) -> bool:
     return bool(before or after)
 
 
 def calculate_diff_dict(
-    db_request: DeclarativeBase, update_data: dict[str, Any]
-) -> dict[str, dict[str, Any]]:
+    db_request: DeclarativeBase, update_data: dict[str, object]
+) -> dict[str, dict[str, object]]:
     before, after = calculate_diff(db_request, update_data)
     return {
         "before": before,

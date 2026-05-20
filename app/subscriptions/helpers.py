@@ -104,7 +104,7 @@ def is_active_falsy(col: Mapped[bool | None]) -> ColumnElement[bool]:
     return col.is_(False)
 
 
-def jsonify(value: Any) -> Any:
+def jsonify(value: object) -> Any:
     """Готовит значение к записи в `admin_logs.details` (JSON-колонка).
 
     `datetime` → ISO-8601 строка; вложенные dict/list проходятся рекурсивно.

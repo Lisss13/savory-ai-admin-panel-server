@@ -19,8 +19,11 @@ max_overflow = 10
 
 [cors]
 # Источники, которым разрешены кросс-доменные запросы. По умолчанию —
-# фронт admin_panel_global на:3040 (см.../CLAUDE.md).
-allow_origins = ["*"]
+# фронт admin_panel_global на :3040 (см. ../CLAUDE.md).
+# ВНИМАНИЕ: при allow_credentials = true нельзя использовать "*" — спека CORS
+# требует явный Origin, иначе браузер блокирует ответ и Starlette не выставит
+# заголовок Access-Control-Allow-Origin.
+allow_origins = ["http://localhost:3040", "http://127.0.0.1:3040"]
 allow_credentials = true
 allow_methods = ["*"]
 allow_headers = ["*"]

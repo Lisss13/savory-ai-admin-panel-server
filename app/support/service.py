@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.admin_log import service as admin_log_service
 from app.admin_log.constants import AdminAction, EntityType
 from app.common.utils.diff import calculate_diff
+from app.common.utils.pagination import PaginationModel
 from app.models import SupportTickets
 from app.support.constants import TicketStatus
 from app.support.exceptions import SupportTicketNotFound
@@ -15,6 +16,7 @@ from app.support.schemas import SupportTicketUpdateReq
 
 async def list_support_tickets(
     db: AsyncSession,
+    pagination: PaginationModel,
     status: TicketStatus | None = None,
 ) -> list[SupportTickets]:
     stmt = (
@@ -22,6 +24,8 @@ async def list_support_tickets(
         .options(selectinload(SupportTickets.user))
         .where(SupportTickets.deleted_at.is_(None))
         .order_by(SupportTickets.updated_at.desc())
+        .limit(pagination.limit)
+        .offset(pagination.offset)
     )
     if status is not None:
         stmt = stmt.where(SupportTickets.status == status)
