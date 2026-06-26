@@ -32,6 +32,8 @@ from app.database import get_db
 from app.main import app
 from app.models import (
     AiRequestLogs,
+    AIRequestQuotas,
+    AIRequestTopUpRequests,
     Languages,
     OnboardingRequests,
     Organizations,
@@ -104,6 +106,17 @@ _subscription_extension_requests_table = cast(Table, SubscriptionExtensionReques
 _subscription_extension_requests_table.c.id.type = Integer()
 _subscription_extension_requests_table.c.status.server_default = None
 _subscription_extension_requests_table.c.requested_restaurant_limit.server_default = None
+# `ai_request_top_up_requests` / `ai_request_quotas` — серверные таблицы, нужны тестам
+# модуля ai_topup. id → Integer для SQLite-автоинкремента; Postgres-specific
+# server_default (`''::text`, `'pending'::text`) SQLite не парсит — сбрасываем
+# (значения задаём явно в фабриках/коде).
+_ai_topup_requests_table = cast(Table, AIRequestTopUpRequests.__table__)
+_ai_topup_requests_table.c.id.type = Integer()
+_ai_topup_requests_table.c.comment.server_default = None
+_ai_topup_requests_table.c.status.server_default = None
+_ai_topup_requests_table.c.admin_comment.server_default = None
+_ai_quotas_table = cast(Table, AIRequestQuotas.__table__)
+_ai_quotas_table.c.id.type = Integer()
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -136,6 +149,9 @@ async def test_engine():
         await conn.run_sync(
             lambda c: _subscription_extension_requests_table.create(c, checkfirst=True)
         )
+        # ai_topup: заявка ссылается на orgs/restaurants/users, квота — на заявку.
+        await conn.run_sync(lambda c: _ai_topup_requests_table.create(c, checkfirst=True))
+        await conn.run_sync(lambda c: _ai_quotas_table.create(c, checkfirst=True))
     yield engine
     await engine.dispose()
 
@@ -157,6 +173,8 @@ async def db_session(test_engine) -> AsyncIterator[AsyncSession]:
         await conn.run_sync(lambda c: c.execute(_languages_table.delete()))
         # Дочерние таблицы сносим до родительских, иначе FK на restaurants/orgs
         # не дадут удалить родителя.
+        await conn.run_sync(lambda c: c.execute(_ai_quotas_table.delete()))
+        await conn.run_sync(lambda c: c.execute(_ai_topup_requests_table.delete()))
         await conn.run_sync(lambda c: c.execute(_ai_request_logs_table.delete()))
         await conn.run_sync(lambda c: c.execute(_subscription_extension_requests_table.delete()))
         await conn.run_sync(lambda c: c.execute(_subscriptions_table.delete()))

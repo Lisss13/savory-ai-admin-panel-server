@@ -10,6 +10,7 @@ from app.admin import service as admin_service
 from app.admin.config import validate_admin_settings_for
 from app.admin.router import router as admin_router
 from app.admin_log.router import router as admin_log_router
+from app.ai_topup.router import router as ai_topup_router
 from app.config import settings
 from app.dashboard.router import router as dashboard_router
 from app.database import SessionFactory, engine
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_router, prefix=settings.app.api_v1_prefix)
     app.include_router(subscriptions_router, prefix=settings.app.api_v1_prefix)
     app.include_router(extension_requests_router, prefix=settings.app.api_v1_prefix)
+    app.include_router(ai_topup_router, prefix=settings.app.api_v1_prefix)
     return app
 
 

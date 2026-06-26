@@ -23,6 +23,7 @@ class EntityType(StrEnum):
     LANGUAGE = "language"
     SUBSCRIPTION = "subscription"
     SUBSCRIPTION_EXTENSION_REQUEST = "subscription_extension_request"
+    AI_TOPUP_REQUEST = "ai_topup_request"
 
 
 DEFAULT_PAGE_SIZE = 50

@@ -13,6 +13,7 @@ from sqlalchemy import (
     Double,
     ForeignKeyConstraint,
     Index,
+    Integer,
     Numeric,
     PrimaryKeyConstraint,
     String,
@@ -134,6 +135,9 @@ class Users(Base):
     subscription_extension_requests: Mapped[list["SubscriptionExtensionRequests"]] = relationship(
         "SubscriptionExtensionRequests", back_populates="user"
     )
+    ai_request_top_up_requests: Mapped[list["AIRequestTopUpRequests"]] = relationship(
+        "AIRequestTopUpRequests", back_populates="user"
+    )
     staff_invites: Mapped[list["StaffInvites"]] = relationship(
         "StaffInvites", back_populates="invited_by"
     )
@@ -170,6 +174,9 @@ class Organizations(Base):
     )
     subscriptions: Mapped[list["Subscriptions"]] = relationship(
         "Subscriptions", back_populates="organization"
+    )
+    ai_request_top_up_requests: Mapped[list["AIRequestTopUpRequests"]] = relationship(
+        "AIRequestTopUpRequests", back_populates="organization"
     )
     staff_invites: Mapped[list["StaffInvites"]] = relationship(
         "StaffInvites", back_populates="organization"
@@ -316,6 +323,12 @@ class Restaurants(Base):
     )
     ai_request_logs: Mapped[list["AiRequestLogs"]] = relationship(
         "AiRequestLogs", back_populates="restaurant"
+    )
+    ai_request_top_up_requests: Mapped[list["AIRequestTopUpRequests"]] = relationship(
+        "AIRequestTopUpRequests", back_populates="restaurant"
+    )
+    ai_request_quotas: Mapped[list["AIRequestQuotas"]] = relationship(
+        "AIRequestQuotas", back_populates="restaurant"
     )
     menu_categories: Mapped[list["MenuCategories"]] = relationship(
         "MenuCategories", back_populates="restaurant"
@@ -1069,4 +1082,110 @@ class BillItems(Base):
     dish: Mapped["Dishes"] = relationship("Dishes", back_populates="bill_items")
     source_order_item: Mapped[Optional["OrderItems"]] = relationship(
         "OrderItems", back_populates="bill_items"
+    )
+
+
+class AIRequestTopUpRequests(Base):
+    """Заявка ресторатора на докупку AI-запросов сверх месячного лимита.
+
+    Таблица создаётся и наполняется user-side в Go-`server/` (миграция
+    `0012_add_ai_topup`). Admin-сервис только читает (список/деталь) и при
+    апруве переводит в `approved`/`rejected` (см. `app/ai_topup/service.py`).
+    Snapshot цены/размера пакета (`requests_per_pack`, `price_per_pack`,
+    `currency`, `total_price`) фиксируется на момент создания заявки.
+    """
+
+    __tablename__ = "ai_request_top_up_requests"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id"], ["organizations.id"], ondelete="CASCADE", name="fk_ai_topup_org"
+        ),
+        ForeignKeyConstraint(
+            ["restaurant_id"], ["restaurants.id"], ondelete="CASCADE", name="fk_ai_topup_restaurant"
+        ),
+        ForeignKeyConstraint(["user_id"], ["users.id"], name="fk_ai_topup_user"),
+        PrimaryKeyConstraint("id", name="ai_request_top_up_requests_pkey"),
+        Index("idx_ai_topup_requests_deleted_at", "deleted_at"),
+        Index("idx_ai_topup_requests_organization", "organization_id"),
+        Index("idx_ai_topup_requests_restaurant", "restaurant_id"),
+        Index("idx_ai_topup_requests_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    restaurant_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    phone: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    # packs_count — INTEGER (не BigInteger), как в миграции 0012.
+    packs_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    requests_per_pack: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    price_per_pack: Mapped[decimal.Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(Text, nullable=False)
+    total_price: Mapped[decimal.Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    comment: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("''::text"))
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'pending'::text")
+    )
+    admin_comment: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("''::text")
+    )
+    created_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+    deleted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+    processed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+
+    organization: Mapped["Organizations"] = relationship(
+        "Organizations", back_populates="ai_request_top_up_requests"
+    )
+    restaurant: Mapped["Restaurants"] = relationship(
+        "Restaurants", back_populates="ai_request_top_up_requests"
+    )
+    user: Mapped["Users"] = relationship("Users", back_populates="ai_request_top_up_requests")
+    quotas: Mapped[list["AIRequestQuotas"]] = relationship(
+        "AIRequestQuotas", back_populates="top_up_request"
+    )
+
+
+class AIRequestQuotas(Base):
+    """Выданная квота AI-запросов. Создаётся admin-сервисом при апруве заявки.
+
+    `requests_granted` = `packs_count * requests_per_pack` (snapshot из заявки).
+    Квота «сгорает»: `expires_at` = начало следующего календарного месяца (UTC).
+    На стороне Go-`server/` активные квоты (`expires_at > NOW()`) суммируются к
+    базовому месячному лимиту.
+    """
+
+    __tablename__ = "ai_request_quotas"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["restaurant_id"], ["restaurants.id"], ondelete="CASCADE", name="fk_ai_quota_restaurant"
+        ),
+        ForeignKeyConstraint(
+            ["top_up_request_id"],
+            ["ai_request_top_up_requests.id"],
+            ondelete="RESTRICT",
+            name="fk_ai_quota_request",
+        ),
+        PrimaryKeyConstraint("id", name="ai_request_quotas_pkey"),
+        Index("idx_ai_quotas_deleted_at", "deleted_at"),
+        Index("idx_ai_quotas_active", "restaurant_id", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    restaurant_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    top_up_request_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    requests_granted: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    period_start: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False)
+    created_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+    deleted_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(True))
+
+    restaurant: Mapped["Restaurants"] = relationship(
+        "Restaurants", back_populates="ai_request_quotas"
+    )
+    top_up_request: Mapped["AIRequestTopUpRequests"] = relationship(
+        "AIRequestTopUpRequests", back_populates="quotas"
     )
